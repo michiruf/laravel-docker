@@ -4,7 +4,6 @@
 # Values already present in the current .env (notably the generated APP_KEY)
 # are preserved unless overridden by a LARAVEL_* variable.
 # shellcheck shell=sh
-# shellcheck disable=SC1090 # disable 'cannot follow non constant source' because it just works
 set -e
 . /opt/docker/etc/print.sh
 
