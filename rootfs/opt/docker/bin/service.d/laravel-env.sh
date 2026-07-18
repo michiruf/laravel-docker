@@ -46,7 +46,11 @@ for line in $(printenv | grep "^${prefix}"); do
     var_name="${original_var_name#"$prefix"}"
     var_value=$(printenv "$original_var_name")
 
-    sed -i "s|\(# \?\)\?$var_name=.*|$var_name=$var_value|g" "$laravel_env_file"
+    # Escape sed replacement metacharacters (\ & and the | delimiter), otherwise
+    # values like generated passwords corrupt the .env or abort the substitution
+    escaped_var_value=$(printf '%s' "$var_value" | sed 's/[\\&|]/\\&/g')
+
+    sed -i "s|\(# \?\)\?$var_name=.*|$var_name=$escaped_var_value|g" "$laravel_env_file"
 done
 
 exit 0
