@@ -30,21 +30,29 @@ fi
 # We could also go the other way around and just take the env without prefixing first, but we introduced
 # the prefix to not have any collision in environment variables and should stay with this approach
 if [ -f "$laravel_env_file" ]; then
-    # shellcheck disable=SC2013 # word-splitting per line is intended (values contain no spaces)
-    for laravel_env in $(grep -v '^#' < "$laravel_env_file"); do
-        eval "${prefix}${laravel_env}=\$$laravel_env"
-        export "${prefix}${laravel_env}"
-    done
+    while IFS= read -r line; do
+        name=${line%%=*}
+        value=${line#*=}
+        # Skip comments, empty lines and anything that is no valid variable name
+        case $name in
+            ''|\#*|*[!A-Za-z0-9_]*) continue ;;
+        esac
+        export "${prefix}${name}=${value}"
+    done < "$laravel_env_file"
 
     set -a; . /etc/environment; set +a
 fi
 
 cp -f "$laravel_example_env_file" "$laravel_env_file"
 
-for line in $(printenv | grep "^${prefix}"); do
-    original_var_name=$(echo "$line" | cut -d '=' -f 1)
+printenv | grep "^${prefix}" | cut -d '=' -f 1 | sort -u | while IFS= read -r original_var_name; do
+    # Skip tokens that are no valid variable names (e.g. continuation lines
+    # of multiline values that happen to match the prefix)
+    case $original_var_name in
+        ''|*[!A-Za-z0-9_]*) continue ;;
+    esac
     var_name="${original_var_name#"$prefix"}"
-    var_value=$(printenv "$original_var_name")
+    var_value=$(printenv "$original_var_name") || continue
 
     # Escape sed replacement metacharacters (\ & and the | delimiter), otherwise
     # values like generated passwords corrupt the .env or abort the substitution
