@@ -58,7 +58,8 @@ printenv | grep "^${prefix}" | cut -d '=' -f 1 | sort -u | while IFS= read -r or
     # values like generated passwords corrupt the .env or abort the substitution
     escaped_var_value=$(printf '%s' "$var_value" | sed 's/[\\&|]/\\&/g')
 
-    sed -i "s|\(# \?\)\?$var_name=.*|$var_name=$escaped_var_value|g" "$laravel_env_file"
+    # Anchored at line start so e.g. APP_NAME does not also match VITE_APP_NAME
+    sed -i "s|^\(# \?\)\?$var_name=.*|$var_name=$escaped_var_value|" "$laravel_env_file"
 done
 
 exit 0
