@@ -3,7 +3,6 @@
 # container env var prefixed with 'LARAVEL_' (prefix stripped) into it.
 # Values already present in the current .env (notably the generated APP_KEY)
 # are preserved unless overridden by a LARAVEL_* variable.
-# shellcheck shell=sh
 set -e
 . /opt/docker/etc/print.sh
 
