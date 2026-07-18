@@ -14,16 +14,9 @@ inputs:
   image:
     description: Name of the image
     required: true
-  tag:
-    description: Tag name (prefix) of the image, e.g. the build target
-    required: true
   target:
-    description: Dockerfile build target/stage to publish
+    description: Dockerfile build target/stage to publish, also used as tag prefix
     required: true
-  do-attestation:
-    description: Whether artifact attestation should be done. This creates additional artifacts on the github package
-    default: 'false'
-    required: false
 
 runs:
   using: composite
@@ -47,10 +40,9 @@ runs:
           type=sha
         flavor: |
           latest=true
-          prefix=${{ inputs.tag }}-,onlatest=true
+          prefix=${{ inputs.target }}-,onlatest=true
 
     - name: Build & Push Docker Image
-      id: push
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -59,11 +51,3 @@ runs:
         tags: ${{ steps.metadata.outputs.tags }}
         labels: ${{ steps.metadata.outputs.labels }}
         annotations: ${{ steps.metadata.outputs.annotations }}
-
-    - name: Generate Artifact Attestation
-      if: ${{ inputs.do-attestation == 'true' }}
-      uses: actions/attest-build-provenance@v1
-      with:
-        subject-name: ${{ inputs.registry }}/${{ inputs.image }}
-        subject-digest: ${{ steps.push.outputs.digest }}
-        push-to-registry: true

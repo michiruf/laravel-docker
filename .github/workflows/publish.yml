@@ -15,8 +15,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      attestations: write
-      id-token: write
     needs:
       - test
     strategy:
@@ -33,5 +31,4 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           image: ${{ github.repository_owner }}/laravel
-          tag: ${{ matrix.target }}
           target: ${{ matrix.target }}

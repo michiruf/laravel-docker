@@ -30,12 +30,11 @@ fi
 if [ -f "$laravel_env_file" ]; then
     while IFS= read -r line; do
         name=${line%%=*}
-        value=${line#*=}
         # Skip comments, empty lines and anything that is no valid variable name
         case $name in
-            ''|\#*|*[!A-Za-z0-9_]*) continue ;;
+            ''|*[!A-Za-z0-9_]*) continue ;;
         esac
-        export "${prefix}${name}=${value}"
+        export "${prefix}${name}=${line#*=}"
     done < "$laravel_env_file"
 
     set -a; . /etc/environment; set +a

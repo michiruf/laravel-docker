@@ -12,6 +12,14 @@ set -e
 exec 9>/var/run/autopull.lock
 flock -n 9 || exit 0
 
+# Run a separator-delimited list of deploy commands: run_commands SEPARATOR LIST
+run_commands() {
+    IFS=$1; for command in $2; do
+        p "> $command" 'cyan'
+        /opt/docker/bin/service.d/deploy-command.sh "$command"
+    done
+}
+
 perform_deploy=false
 
 # Check if required GIT_URL exists
@@ -43,10 +51,7 @@ if [ ! -d ".git" ]; then
     fi
     echo 'Done'
 
-    IFS=$INITIAL_DEPLOY_COMMAND_SEPARATOR; for command in $INITIAL_DEPLOY_COMMANDS; do
-        p "> $command" 'cyan'
-        /opt/docker/bin/service.d/deploy-command.sh "$command"
-    done
+    run_commands "$INITIAL_DEPLOY_COMMAND_SEPARATOR" "$INITIAL_DEPLOY_COMMANDS"
 
     perform_deploy=true
 fi
@@ -63,10 +68,7 @@ fi
 if [ "$perform_deploy" = true ] ; then
     p '=> performing deploy now' 'purple'
 
-    IFS=$DEPLOY_COMMAND_SEPARATOR; for command in $DEPLOY_COMMANDS; do
-        p "> $command" 'cyan'
-        /opt/docker/bin/service.d/deploy-command.sh "$command"
-    done
+    run_commands "$DEPLOY_COMMAND_SEPARATOR" "$DEPLOY_COMMANDS"
 
     p '> adjust rights' 'cyan'
     chown -R "$APPLICATION_UID":"$APPLICATION_GID" .
