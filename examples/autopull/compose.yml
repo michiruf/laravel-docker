@@ -1,0 +1,62 @@
+services:
+  app:
+    # In production, use the published image instead of building locally:
+    #   image: ghcr.io/michiruf/laravel:autopull-latest
+    build:
+      context: ../..
+      target: autopull
+    ports:
+      - '${HOST_PORT:-8080}:80'
+    # https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-nginx.html#environment-variables
+    environment:
+      - GIT_URL=${GIT_URL:?GIT_URL is required}
+      - BRANCH=${BRANCH:-}
+
+      # Laravel env (prefixed with 'LARAVEL_') is injected into the applications .env on 'env:update'
+      - LARAVEL_APP_ENV=production
+      - LARAVEL_APP_DEBUG=false
+      - LARAVEL_DB_CONNECTION=mysql
+      - LARAVEL_DB_HOST=mysql
+      - LARAVEL_DB_PORT=3306
+      - LARAVEL_DB_DATABASE=${MYSQL_DATABASE}
+      - LARAVEL_DB_USERNAME=${MYSQL_USER}
+      - LARAVEL_DB_PASSWORD=${MYSQL_PASSWORD}
+      - LARAVEL_REDIS_HOST=redis
+    volumes:
+      - 'app-data:/app/'
+      # Persist host keys (relevant when pulling private repositories via ssh):
+      - 'ssh-config-data:/etc/ssh/'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8
+    environment:
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+    volumes:
+      - 'mysql-data:/var/lib/mysql/'
+    healthcheck:
+      test: [ 'CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u$MYSQL_USER', '-p$MYSQL_PASSWORD' ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+
+volumes:
+  app-data:
+    driver: local
+  ssh-config-data:
+    driver: local
+  mysql-data:
+    driver: local
