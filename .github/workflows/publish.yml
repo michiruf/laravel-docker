@@ -6,9 +6,6 @@ on:
       - '*'
   workflow_dispatch: # Make this workflow runnable on github
 
-env:
-  REGISTRY: ghcr.io
-
 jobs:
   test:
     uses: ./.github/workflows/test.yml
@@ -32,7 +29,7 @@ jobs:
       - name: Publish Image '${{ matrix.target }}'
         uses: ./.github/actions/publish-image
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           image: ${{ github.repository_owner }}/laravel

@@ -12,8 +12,6 @@
 #   skip the package check.
 # - Once runnable, exec's into artisan so supervisor signals reach the process
 #   directly (keeps e.g. horizon's graceful drain via stopwaitsecs intact).
-# shellcheck shell=sh
-# shellcheck disable=SC1091 # /etc/environment only exists inside the container
 set -e
 . /opt/docker/etc/print.sh
 

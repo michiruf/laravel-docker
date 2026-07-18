@@ -14,10 +14,7 @@ wait_for_log() {
     local timeout=${2:-300}
     local min_count=${3:-1}
     local waited=0
-    while true; do
-        if [ "$(compose logs app 2>&1 | grep -c "$pattern")" -ge "$min_count" ]; then
-            return 0
-        fi
+    until [ "$(compose logs app 2>&1 | grep -c "$pattern")" -ge "$min_count" ]; do
         if [ "$waited" -ge "$timeout" ]; then
             echo "timed out after ${timeout}s waiting for log pattern: $pattern (x$min_count)" >&2
             compose logs app >&2

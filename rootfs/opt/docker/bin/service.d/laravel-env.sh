@@ -45,12 +45,9 @@ fi
 
 cp -f "$laravel_example_env_file" "$laravel_env_file"
 
-printenv | grep "^${prefix}" | cut -d '=' -f 1 | sort -u | while IFS= read -r original_var_name; do
-    # Skip tokens that are no valid variable names (e.g. continuation lines
-    # of multiline values that happen to match the prefix)
-    case $original_var_name in
-        ''|*[!A-Za-z0-9_]*) continue ;;
-    esac
+# sed only emits valid variable names, skipping e.g. continuation lines
+# of multiline values that happen to match the prefix
+printenv | sed -n "s/^\(${prefix}[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r original_var_name; do
     var_name="${original_var_name#"$prefix"}"
     var_value=$(printenv "$original_var_name") || continue
 
@@ -61,5 +58,3 @@ printenv | grep "^${prefix}" | cut -d '=' -f 1 | sort -u | while IFS= read -r or
     # Anchored at line start so e.g. APP_NAME does not also match VITE_APP_NAME
     sed -i "s|^\(# \?\)\?$var_name=.*|$var_name=$escaped_var_value|" "$laravel_env_file"
 done
-
-exit 0

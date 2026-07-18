@@ -1,7 +1,6 @@
 #!/usr/bin/env sh
 # Provisioning command dispatcher: executes a single deploy command token.
 # See the README for the full command DSL reference.
-# shellcheck shell=sh
 set -e
 . /opt/docker/etc/print.sh
 
@@ -32,8 +31,9 @@ case $command in
     'artisan?:'*)
         # Optional artisan command: tolerate absence/failure (e.g. horizon:terminate
         # on an application that does not ship horizon)
-        eval "/opt/docker/bin/service.d/laravel-artisan.sh ${command#artisan?:}" \
-            || p "optional artisan command '${command#artisan?:}' failed or is unavailable, continuing" 'yellow'
+        args=${command#"artisan?:"}
+        eval "/opt/docker/bin/service.d/laravel-artisan.sh $args" \
+            || p "optional artisan command '$args' failed or is unavailable, continuing" 'yellow'
         ;;
     artisan:*)
         # artisan wrapper script already has ansi

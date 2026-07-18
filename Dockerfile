@@ -33,8 +33,8 @@ RUN printf '*\t*\t*\t*\t*\t/opt/docker/bin/service.d/autopull.sh\n' >> /etc/cron
 ENV BRANCH=
 
 # Set the default deploy commands and their separator
-ENV DEPLOY_COMMAND_SEPARATOR=;
-ENV DEPLOY_COMMANDS="\
+ENV DEPLOY_COMMAND_SEPARATOR=; \
+    DEPLOY_COMMANDS="\
   artisan:down ; \
   git:update ; \
   composer:install --no-progress ; \
@@ -47,8 +47,8 @@ ENV DEPLOY_COMMANDS="\
   artisan?:queue:restart ; \
   artisan?:pulse:restart ; \
   artisan:up"
-ENV INITIAL_DEPLOY_COMMAND_SEPARATOR=;
-ENV INITIAL_DEPLOY_COMMANDS="\
+ENV INITIAL_DEPLOY_COMMAND_SEPARATOR=; \
+    INITIAL_DEPLOY_COMMANDS="\
   composer:install --no-progress ; \
   env:update ; \
   artisan:key:generate --force ; \
@@ -60,8 +60,8 @@ FROM base AS baked
 COPY rootfs-baked/ /
 
 # Set the default deploy commands and their separator
-ENV DEPLOY_COMMAND_SEPARATOR=;
-ENV DEPLOY_COMMANDS="\
+ENV DEPLOY_COMMAND_SEPARATOR=; \
+    DEPLOY_COMMANDS="\
   env:update ; \
   artisan:storage:link ; \
   artisan:optimize ; \
