@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_call: # Make this workflow callable from other workflows
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Shellcheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck rootfs*/opt/docker/bin/service.d/*.sh rootfs*/opt/docker/provision/entrypoint.d/*.sh rootfs/opt/docker/etc/print.sh
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+  integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [ autopull, baked ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Run integration tests for '${{ matrix.variant }}'
+        run: bats tests/${{ matrix.variant }}.bats
