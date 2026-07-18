@@ -1,0 +1,39 @@
+#!/usr/bin/env sh
+# Baked provisioning trigger, executed on every container start:
+# - first run (empty application path): moves /app-src into place and generates the APP_KEY
+# - every run: executes DEPLOY_COMMANDS
+# shellcheck shell=sh
+# shellcheck disable=SC1091 # /etc/environment only exists inside the container
+set -e
+. /opt/docker/etc/print.sh
+
+# Load environment file
+# 'set -a' ensures they are treated as exported
+# See https://superuser.com/a/1240860
+set -a; . /etc/environment; set +a
+
+cd "$APPLICATION_PATH"
+
+# Move project over if app directory empty and perform initial setups
+if [ -z "$(ls -A "$APPLICATION_PATH")" ]; then
+    p "=> initial project setup, because '$APPLICATION_PATH' was empty" 'purple'
+
+    p "> make project source available in '$APPLICATION_PATH'" 'cyan'
+    find /app-src -maxdepth 1 -mindepth 1 \( ! -name '.' ! -name '..' \) -exec mv {} "$APPLICATION_PATH" \;
+
+    # The .env must exist before key:generate can write the APP_KEY into it
+    p '> generate env file' 'cyan'
+    /opt/docker/bin/service.d/deploy-command.sh env:update
+
+    p '> generate app key' 'cyan'
+    /opt/docker/bin/service.d/deploy-command.sh artisan:key:generate --force
+fi
+
+p '=> performing deploy now' 'purple'
+
+IFS=$DEPLOY_COMMAND_SEPARATOR; for command in $DEPLOY_COMMANDS; do
+    p "> $command" 'cyan'
+    /opt/docker/bin/service.d/deploy-command.sh "$command"
+done
+
+p '=> deploy completed' 'purple'

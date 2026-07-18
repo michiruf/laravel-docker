@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+# Supervisor wrapper for artisan programs that may not exist in every application.
+#
+# Usage: laravel-optional.sh <composer-package|-> <artisan args...>
+#
+# - Waits until the application is provisioned (artisan + vendor exist), so
+#   supervisor programs stay RUNNING instead of crash-looping before the first
+#   deploy finished.
+# - If a composer package is given (e.g. 'laravel/horizon') and it is not
+#   installed, idles and re-checks periodically, so a later deploy that adds
+#   the package starts the program without a container restart. Pass '-' to
+#   skip the package check.
+# - Once runnable, exec's into artisan so supervisor signals reach the process
+#   directly (keeps e.g. horizon's graceful drain via stopwaitsecs intact).
+# shellcheck shell=sh
+# shellcheck disable=SC1091 # /etc/environment only exists inside the container
+set -e
+. /opt/docker/etc/print.sh
+
+# Load environment file
+# 'set -a' ensures they are treated as exported
+# See https://superuser.com/a/1240860
+set -a; . /etc/environment; set +a
+
+package=$1
+shift
+
+# Exit promptly when supervisor stops us while we are waiting/idling
+trap 'exit 0' TERM INT
+
+# Wait for the application to be provisioned
+while [ ! -f "$APPLICATION_PATH/artisan" ] || [ ! -d "$APPLICATION_PATH/vendor" ]; do
+    sleep 5 &
+    wait $!
+done
+
+# Idle while the optional package is not installed
+if [ "$package" != '-' ]; then
+    notified=false
+    while [ ! -d "$APPLICATION_PATH/vendor/$package" ]; do
+        if [ "$notified" = false ]; then
+            p "package '$package' is not installed, idling (re-checking periodically)" 'yellow'
+            notified=true
+        fi
+        sleep 60 &
+        wait $!
+    done
+fi
+
+cd "$APPLICATION_PATH"
+exec php artisan "$@" --ansi
