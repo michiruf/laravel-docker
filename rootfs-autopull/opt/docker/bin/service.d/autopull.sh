@@ -16,12 +16,17 @@ fi
 
 cd "$APPLICATION_PATH"
 
+# Flag the directory to be usable by both, root and the application user.
+# This must happen on every run (not only on the initial clone): the config
+# lives in the container filesystem while the repository lives on a volume,
+# so a recreated container would otherwise fail all git commands with
+# 'detected dubious ownership'.
+git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$APPLICATION_PATH" \
+    || git config --global --add safe.directory "$APPLICATION_PATH"
+
 # Clone if there is no .git directory yet
 if [ ! -d ".git" ]; then
     p "=> initial project setup, because '$APPLICATION_PATH/.git' does not exist" 'purple'
-
-    # Flag the directory to be usable by both, root and the application user
-    git config --global --add safe.directory "$APPLICATION_PATH"
 
     if [ -n "$BRANCH" ]; then
         p "> clone repository with branch '$BRANCH'" 'cyan'
