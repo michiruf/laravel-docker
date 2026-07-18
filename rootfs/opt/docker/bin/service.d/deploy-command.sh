@@ -5,8 +5,11 @@
 set -e
 . /opt/docker/etc/print.sh
 
-# Trim command
-command=$(echo "$@" | xargs)
+# Trim surrounding whitespace (pure parameter expansion; unlike xargs this
+# does not mangle quotes or backslashes)
+command=$*
+command=${command#"${command%%[![:space:]]*}"}
+command=${command%"${command##*[![:space:]]}"}
 
 # Switch what to do with the command
 case $command in

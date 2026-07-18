@@ -35,13 +35,9 @@ while [ ! -f "$APPLICATION_PATH/artisan" ] || [ ! -d "$APPLICATION_PATH/vendor" 
 done
 
 # Idle while the optional package is not installed
-if [ "$package" != '-' ]; then
-    notified=false
+if [ "$package" != '-' ] && [ ! -d "$APPLICATION_PATH/vendor/$package" ]; then
+    p "package '$package' is not installed, idling (re-checking periodically)" 'yellow'
     while [ ! -d "$APPLICATION_PATH/vendor/$package" ]; do
-        if [ "$notified" = false ]; then
-            p "package '$package' is not installed, idling (re-checking periodically)" 'yellow'
-            notified=true
-        fi
         sleep 60 &
         wait $!
     done

@@ -44,6 +44,20 @@ assert_http_ok() {
     return 1
 }
 
+# Print the APP_KEY line from the application's .env.
+app_key() {
+    compose exec -T app sh -c 'grep "^APP_KEY=" "$APPLICATION_PATH/.env"'
+}
+
+# The .env must have been synthesized from the container environment.
+assert_env_synthesized() {
+    run compose exec -T app sh -c 'cat "$APPLICATION_PATH/.env"'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"DB_HOST=mysql"* ]]
+    [[ "$output" == *"DB_CONNECTION=mysql"* ]]
+    [[ "$output" == *"APP_KEY=base64:"* ]]
+}
+
 # The whole application tree must be owned by the application user, not root.
 assert_no_root_owned_files() {
     local owners

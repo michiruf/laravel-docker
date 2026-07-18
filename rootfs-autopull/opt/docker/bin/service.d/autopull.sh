@@ -54,7 +54,7 @@ fi
 # Check if there is no new stuff and then exit
 # See https://stackoverflow.com/questions/3258243/check-if-pull-needed-in-git
 git fetch
-if [ "$(git rev-parse HEAD)" != "$(git rev-parse @\{u\})" ]; then
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]; then
     p '=> detected changes in the git revision' 'purple'
 
     perform_deploy=true

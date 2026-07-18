@@ -19,7 +19,7 @@ if [ -z "$(ls -A "$APPLICATION_PATH")" ]; then
     p "=> initial project setup, because '$APPLICATION_PATH' was empty" 'purple'
 
     p "> make project source available in '$APPLICATION_PATH'" 'cyan'
-    find /app-src -maxdepth 1 -mindepth 1 \( ! -name '.' ! -name '..' \) -exec mv {} "$APPLICATION_PATH" \;
+    find /app-src -maxdepth 1 -mindepth 1 -exec mv {} "$APPLICATION_PATH" \;
 
     # The .env must exist before key:generate can write the APP_KEY into it
     p '> generate env file' 'cyan'

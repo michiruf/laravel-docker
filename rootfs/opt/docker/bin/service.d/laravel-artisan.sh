@@ -27,6 +27,3 @@ fi
 # Some commands require to be in the artisan directory already, so we first need to switch directories
 cd "$APPLICATION_PATH"
 php artisan "$@" --ansi
-
-# Exit with artisans exit code
-exit $?

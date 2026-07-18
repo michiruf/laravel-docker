@@ -49,6 +49,4 @@ services:
 
 volumes:
   app-data:
-    driver: local
   mysql-data:
-    driver: local

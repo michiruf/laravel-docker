@@ -12,8 +12,7 @@ FROM webdevops/php-nginx:8.4-alpine AS base
 # Patch fastcgi to use the realpath_root instead of the document_root, so we do not need to reload fpm
 # See https://deployer.org/docs/7.x/avoid-php-fpm-reloading
 # hadolint ignore=SC2016
-RUN set -x \
-    && sed -i 's|fastcgi_param.\+SCRIPT_FILENAME.\+\$request_filename\;|fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;|' /opt/docker/etc/nginx/vhost.common.d/10-php.conf
+RUN sed -i 's|fastcgi_param.\+SCRIPT_FILENAME.\+\$request_filename\;|fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;|' /opt/docker/etc/nginx/vhost.common.d/10-php.conf
 
 # Provisioning engine: scripts, entrypoints and supervisor programs
 # (file modes are preserved from the build context)
@@ -28,9 +27,7 @@ FROM base AS autopull
 COPY rootfs-autopull/ /
 
 # Register a crontab to periodically run the autopull deploy trigger
-# hadolint ignore=SC3037
-RUN set -x \
-  && echo -e '*\t*\t*\t*\t*\t/opt/docker/bin/service.d/autopull.sh' >> /etc/crontabs/root
+RUN printf '*\t*\t*\t*\t*\t/opt/docker/bin/service.d/autopull.sh\n' >> /etc/crontabs/root
 
 # Git branch to deploy; empty means the remote default branch
 ENV BRANCH=

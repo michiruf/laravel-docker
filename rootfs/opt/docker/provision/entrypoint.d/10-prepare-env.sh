@@ -7,12 +7,11 @@ set -e
 # single-quoted assignments, so values containing spaces or shell
 # metacharacters survive being sourced by the other scripts.
 append_env() {
-    printenv | grep "^$1" | cut -d '=' -f 1 | sort -u | while IFS= read -r name; do
-        # Skip tokens that are no valid variable names (e.g. continuation
-        # lines of multiline values that happen to match the prefix)
-        case $name in
-            *[!A-Za-z0-9_]*|'') continue ;;
-        esac
+    # sed only emits valid variable names and, unlike grep, exits 0 when
+    # nothing matches — this script is sourced by the webdevops entrypoint
+    # under 'set -o pipefail -o errexit', where a no-match grep would kill
+    # the whole container startup
+    printenv | sed -n "s/^\($1[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r name; do
         value=$(printenv "$name") || continue
         escaped=$(printf '%s' "$value" | sed "s/'/'\\\\''/g")
         printf "%s='%s'\n" "$name" "$escaped" >> /etc/environment
