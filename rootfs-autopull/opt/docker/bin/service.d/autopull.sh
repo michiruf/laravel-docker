@@ -6,6 +6,12 @@
 set -e
 . /opt/docker/etc/print.sh
 
+# A deploy can easily take longer than the one-minute cron interval (initial
+# clone + composer install). Hold an exclusive lock so overlapping cron ticks
+# exit instead of running concurrent git/composer/artisan pipelines.
+exec 9>/var/run/autopull.lock
+flock -n 9 || exit 0
+
 perform_deploy=false
 
 # Check if required GIT_URL exists
