@@ -1,0 +1,4 @@
+# Scripts run inside the container with busybox/ash, so keep POSIX sh rules
+shell=sh
+# Sourced files (/opt/docker/..., /etc/environment) only exist inside the container
+disable=SC1091
