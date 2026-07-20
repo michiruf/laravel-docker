@@ -1,0 +1,20 @@
+# Test overlay: adds a local Gitea instance to the autopull stack so the
+# private-repository suite can exercise ssh deploy keys and https tokens
+# without external secrets. The app container reaches it as 'gitea'
+# (ssh://git@gitea/..., http://gitea:3000/...); the test host seeds it
+# through the published port.
+services:
+  gitea:
+    image: gitea/gitea:1
+    environment:
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__server__DOMAIN=gitea
+      - GITEA__server__SSH_DOMAIN=gitea
+      - GITEA__server__ROOT_URL=http://gitea:3000/
+    ports:
+      - '${GITEA_HTTP_PORT:-3300}:3000'
+    healthcheck:
+      test: [ 'CMD', 'curl', '-fsS', 'http://localhost:3000/api/healthz' ]
+      interval: 2s
+      timeout: 5s
+      retries: 60
