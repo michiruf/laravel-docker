@@ -12,9 +12,12 @@
 # must run on every cron tick to survive container recreation (same
 # reasoning as the safe.directory handling in autopull.sh).
 
+# No umask here: this file is sourced by autopull.sh, so a umask would leak
+# into the checkout and break web-server access to the deployed files.
+# Permissions are set explicitly on the ssh files instead.
 if [ -n "$GIT_SSH_KEY" ]; then
-    umask 077
     mkdir -p /root/.ssh
+    chmod 700 /root/.ssh
 
     case $GIT_SSH_KEY in
         -----BEGIN*)
