@@ -11,6 +11,11 @@ services:
     environment:
       - GIT_URL=${GIT_URL:?GIT_URL is required}
       - BRANCH=${BRANCH:-}
+      # Private repositories: ssh deploy key (raw PEM or base64) and optional
+      # pinned host key(s); empty means trust-on-first-use. HTTPS tokens go
+      # directly into GIT_URL (https://user:token@host/repo.git) instead.
+      - GIT_SSH_KEY=${GIT_SSH_KEY:-}
+      - GIT_SSH_KNOWN_HOSTS=${GIT_SSH_KNOWN_HOSTS:-}
 
       # Laravel env (prefixed with 'LARAVEL_') is injected into the applications .env on 'env:update'
       - LARAVEL_APP_ENV=production

@@ -113,6 +113,8 @@ A plain `laravel/laravel` skeleton therefore runs with zero configuration.
 |---|---|---|
 | `GIT_URL` | — (required, autopull) | Repository to deploy (https or ssh) |
 | `BRANCH` | empty (autopull) | Branch to deploy; empty uses the remote default branch |
+| `GIT_SSH_KEY` | empty (autopull) | Private deploy key for ssh URLs, raw PEM or base64 |
+| `GIT_SSH_KNOWN_HOSTS` | empty (autopull) | Pinned host key line(s); empty trusts on first use |
 | `DEPLOY_COMMANDS` | see above | Commands run on every deploy |
 | `DEPLOY_COMMAND_SEPARATOR` | `;` | Token separator |
 | `INITIAL_DEPLOY_COMMANDS` | see above | Commands run on first provision (autopull) |
@@ -133,9 +135,34 @@ RUN set -x \
   && apk del -f --purge $PHPIZE_DEPS linux-headers imap-dev openssl-dev krb5-dev
 ```
 
-Private repositories with autopull: use an ssh `GIT_URL`, mount a deploy key
-and keep the `/etc/ssh` volume (see the example compose file) so host keys
-persist.
+## Private repositories (autopull)
+
+Two supported mechanisms:
+
+**HTTPS token in the URL** — no configuration beyond the URL itself:
+
+```sh
+GIT_URL=https://x-access-token:<token>@github.com/you/app.git
+```
+
+Note the token is visible to anyone who can read the container environment
+(`docker inspect`).
+
+**SSH deploy key** — set `GIT_SSH_KEY` to the private key, either raw PEM or
+base64-encoded (`base64 -w0 < key`; required when passing it through an
+`.env` file, which cannot hold multi-line values):
+
+```sh
+GIT_URL=ssh://git@github.com/you/app.git
+GIT_SSH_KEY=<base64 of the private deploy key>
+```
+
+The key is provisioned into the container on every deploy tick, so it
+survives container recreation, and rotating it is just updating the env and
+recreating the container. Host keys are trusted on first use by default;
+pin them for production with `GIT_SSH_KNOWN_HOSTS` (a `known_hosts` line,
+e.g. from `ssh-keyscan -t ed25519 github.com`) — then a changed host key
+fails hard instead of being accepted.
 
 ## Tests
 
@@ -146,7 +173,11 @@ skeleton through both variants — full stack, real database, real deploys:
 ```sh
 bats tests/autopull.bats
 bats tests/baked.bats
+bats tests/autopull-private.bats   # autopull private-repo auth against a local Gitea fixture
 ```
 
 Requires docker with the compose plugin; suites use separate compose project
-names and ports (8080/8081) and clean up after themselves.
+names and ports (8080/8081/8082) and clean up after themselves. The private
+suite needs no external secrets — it hosts the private repository itself in
+a throwaway Gitea container and exercises both the ssh deploy key and the
+https token flow against it.
