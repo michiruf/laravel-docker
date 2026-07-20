@@ -1,22 +1,15 @@
 #!/usr/bin/env sh
-# shellcheck disable=SC3037 # disable 'echo flags undefined in POSIX sh' (busybox echo supports -e)
-# shellcheck disable=SC2034 # disable 'appears unused'
 
-# Define colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[0;37m'
-RESET='\033[0m' # No Color
+RESET='\033[0m'
 
 p() {
-    text=$1
-    color_input=$(echo "$2" | awk '{print toupper($0)}')
-    eval "color=\$$color_input"
+    case $2 in
+        red)    color='\033[0;31m' ;;
+        yellow) color='\033[0;33m' ;;
+        purple) color='\033[0;35m' ;;
+        cyan)   color='\033[0;36m' ;;
+        *)      color='' ;;
+    esac
 
-    # shellcheck disable=SC2154 # disable 'referenced but not assigned'
-    echo -e "${color}${text}${RESET}"
+    printf '%b\n' "${color}${1}${RESET}"
 }

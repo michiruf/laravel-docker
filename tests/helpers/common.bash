@@ -14,10 +14,7 @@ wait_for_log() {
     local timeout=${2:-300}
     local min_count=${3:-1}
     local waited=0
-    while true; do
-        if [ "$(compose logs app 2>&1 | grep -c "$pattern")" -ge "$min_count" ]; then
-            return 0
-        fi
+    until [ "$(compose logs app 2>&1 | grep -c "$pattern")" -ge "$min_count" ]; do
         if [ "$waited" -ge "$timeout" ]; then
             echo "timed out after ${timeout}s waiting for log pattern: $pattern (x$min_count)" >&2
             compose logs app >&2
@@ -42,6 +39,20 @@ assert_http_ok() {
     echo "expected 2xx/3xx from $url, last status: $status" >&2
     compose logs app >&2
     return 1
+}
+
+# Print the APP_KEY line from the application's .env.
+app_key() {
+    compose exec -T app sh -c 'grep "^APP_KEY=" "$APPLICATION_PATH/.env"'
+}
+
+# The .env must have been synthesized from the container environment.
+assert_env_synthesized() {
+    run compose exec -T app sh -c 'cat "$APPLICATION_PATH/.env"'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"DB_HOST=mysql"* ]]
+    [[ "$output" == *"DB_CONNECTION=mysql"* ]]
+    [[ "$output" == *"APP_KEY=base64:"* ]]
 }
 
 # The whole application tree must be owned by the application user, not root.

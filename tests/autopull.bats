@@ -55,21 +55,17 @@ teardown_file() {
 }
 
 @test "autopull: provisioning synthesized .env from container environment" {
-    run compose exec -T app sh -c 'cat "$APPLICATION_PATH/.env"'
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"DB_HOST=mysql"* ]]
-    [[ "$output" == *"DB_CONNECTION=mysql"* ]]
-    [[ "$output" == *"APP_KEY=base64:"* ]]
+    assert_env_synthesized
 }
 
 @test "autopull: upstream change triggers a redeploy, APP_KEY is preserved" {
-    app_key_before=$(compose exec -T app sh -c 'grep "^APP_KEY=" "$APPLICATION_PATH/.env"')
+    app_key_before=$(app_key)
 
     # Rewind the checkout so it diverges from upstream; the next cron tick must redeploy
     compose exec -T app sh -c 'cd "$APPLICATION_PATH" && git reset --hard HEAD~1'
     wait_for_log '=> deploy completed' 240 2
 
-    app_key_after=$(compose exec -T app sh -c 'grep "^APP_KEY=" "$APPLICATION_PATH/.env"')
+    app_key_after=$(app_key)
     [ -n "$app_key_before" ]
     [ "$app_key_before" = "$app_key_after" ]
     assert_http_ok "http://localhost:$HOST_PORT"

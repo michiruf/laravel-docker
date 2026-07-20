@@ -55,8 +55,5 @@ services:
 
 volumes:
   app-data:
-    driver: local
   ssh-config-data:
-    driver: local
   mysql-data:
-    driver: local

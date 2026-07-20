@@ -12,8 +12,6 @@
 #   skip the package check.
 # - Once runnable, exec's into artisan so supervisor signals reach the process
 #   directly (keeps e.g. horizon's graceful drain via stopwaitsecs intact).
-# shellcheck shell=sh
-# shellcheck disable=SC1091 # /etc/environment only exists inside the container
 set -e
 . /opt/docker/etc/print.sh
 
@@ -35,13 +33,9 @@ while [ ! -f "$APPLICATION_PATH/artisan" ] || [ ! -d "$APPLICATION_PATH/vendor" 
 done
 
 # Idle while the optional package is not installed
-if [ "$package" != '-' ]; then
-    notified=false
+if [ "$package" != '-' ] && [ ! -d "$APPLICATION_PATH/vendor/$package" ]; then
+    p "package '$package' is not installed, idling (re-checking periodically)" 'yellow'
     while [ ! -d "$APPLICATION_PATH/vendor/$package" ]; do
-        if [ "$notified" = false ]; then
-            p "package '$package' is not installed, idling (re-checking periodically)" 'yellow'
-            notified=true
-        fi
         sleep 60 &
         wait $!
     done

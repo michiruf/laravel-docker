@@ -3,8 +3,6 @@
 # container env var prefixed with 'LARAVEL_' (prefix stripped) into it.
 # Values already present in the current .env (notably the generated APP_KEY)
 # are preserved unless overridden by a LARAVEL_* variable.
-# shellcheck shell=sh
-# shellcheck disable=SC1090 # disable 'cannot follow non constant source' because it just works
 set -e
 . /opt/docker/etc/print.sh
 
@@ -30,23 +28,30 @@ fi
 # We could also go the other way around and just take the env without prefixing first, but we introduced
 # the prefix to not have any collision in environment variables and should stay with this approach
 if [ -f "$laravel_env_file" ]; then
-    # shellcheck disable=SC2013 # word-splitting per line is intended (values contain no spaces)
-    for laravel_env in $(grep -v '^#' < "$laravel_env_file"); do
-        eval "${prefix}${laravel_env}=\$$laravel_env"
-        export "${prefix}${laravel_env}"
-    done
+    while IFS= read -r line; do
+        name=${line%%=*}
+        # Skip comments, empty lines and anything that is no valid variable name
+        case $name in
+            ''|*[!A-Za-z0-9_]*) continue ;;
+        esac
+        export "${prefix}${name}=${line#*=}"
+    done < "$laravel_env_file"
 
     set -a; . /etc/environment; set +a
 fi
 
 cp -f "$laravel_example_env_file" "$laravel_env_file"
 
-for line in $(printenv | grep "^${prefix}"); do
-    original_var_name=$(echo "$line" | cut -d '=' -f 1)
+# sed only emits valid variable names, skipping e.g. continuation lines
+# of multiline values that happen to match the prefix
+printenv | sed -n "s/^\(${prefix}[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r original_var_name; do
     var_name="${original_var_name#"$prefix"}"
-    var_value=$(printenv "$original_var_name")
+    var_value=$(printenv "$original_var_name") || continue
 
-    sed -i "s|\(# \?\)\?$var_name=.*|$var_name=$var_value|g" "$laravel_env_file"
+    # Escape sed replacement metacharacters (\ & and the | delimiter), otherwise
+    # values like generated passwords corrupt the .env or abort the substitution
+    escaped_var_value=$(printf '%s' "$var_value" | sed 's/[\\&|]/\\&/g')
+
+    # Anchored at line start so e.g. APP_NAME does not also match VITE_APP_NAME
+    sed -i "s|^\(# \?\)\?$var_name=.*|$var_name=$escaped_var_value|" "$laravel_env_file"
 done
-
-exit 0

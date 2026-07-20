@@ -1,6 +1,5 @@
 #!/usr/bin/env sh
 # Guarded artisan wrapper: refuses to run before the application is provisioned.
-# shellcheck shell=sh
 set -e
 . /opt/docker/etc/print.sh
 
@@ -9,24 +8,16 @@ set -e
 # See https://superuser.com/a/1240860
 set -a; . /etc/environment; set +a
 
-if [ ! -d "$APPLICATION_PATH" ]; then
-    p "cannot execute artisan command \"$*\" yet: deployment not yet complete (there is no $APPLICATION_PATH directory)" 'red'
+fail() {
+    p "cannot execute artisan command \"$cmd\" yet: $1" 'red'
     exit 1
-fi
+}
 
-if [ ! -f "$APPLICATION_PATH/artisan" ]; then
-    p "cannot execute artisan command \"$*\" yet: deployment not yet complete (there is no artisan file in $APPLICATION_PATH)" 'red'
-    exit 1
-fi
-
-if [ ! -d "$APPLICATION_PATH/vendor" ]; then
-    p "cannot execute artisan command \"$*\" yet: composer did not install dependencies yet (there is no vendor directory in $APPLICATION_PATH)" 'red'
-    exit 1
-fi
+cmd="$*"
+[ -d "$APPLICATION_PATH" ]         || fail "deployment not yet complete (there is no $APPLICATION_PATH directory)"
+[ -f "$APPLICATION_PATH/artisan" ] || fail "deployment not yet complete (there is no artisan file in $APPLICATION_PATH)"
+[ -d "$APPLICATION_PATH/vendor" ]  || fail "composer did not install dependencies yet (there is no vendor directory in $APPLICATION_PATH)"
 
 # Some commands require to be in the artisan directory already, so we first need to switch directories
 cd "$APPLICATION_PATH"
 php artisan "$@" --ansi
-
-# Exit with artisans exit code
-exit $?
