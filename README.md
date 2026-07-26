@@ -23,7 +23,7 @@ Add a `Dockerfile` to your Laravel application:
 ```dockerfile
 FROM ghcr.io/michiruf/laravel:baked-latest
 COPY --chown=$APPLICATION_UID:$APPLICATION_GID . /app-src
-RUN /opt/docker/bin/service.d/baked-build.sh
+RUN /opt/docker/bin/baked-build.sh
 ```
 
 Build and run it (see [examples/baked/compose.yml](examples/baked/compose.yml)

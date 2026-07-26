@@ -134,9 +134,9 @@ teardown_file() {
     local hostline
     hostline=$(compose exec -T app ssh-keyscan -t ed25519 gitea 2>/dev/null)
     compose exec -T -e GIT_SSH_KNOWN_HOSTS="$hostline" app sh -c \
-        '. /opt/docker/etc/print.sh; . /opt/docker/bin/service.d/git-credentials.sh && git ls-remote "$GIT_URL" HEAD >/dev/null'
+        '. /opt/docker/etc/print.sh; . /opt/docker/bin/git-credentials.sh && git ls-remote "$GIT_URL" HEAD >/dev/null'
     run compose exec -T -e GIT_SSH_KNOWN_HOSTS='gitea ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' app sh -c \
-        '. /opt/docker/etc/print.sh; . /opt/docker/bin/service.d/git-credentials.sh && git ls-remote "$GIT_URL" HEAD >/dev/null'
+        '. /opt/docker/etc/print.sh; . /opt/docker/bin/git-credentials.sh && git ls-remote "$GIT_URL" HEAD >/dev/null'
     [ "$status" -ne 0 ]
 }
 

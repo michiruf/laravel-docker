@@ -15,7 +15,7 @@ jobs:
       - name: Shellcheck
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
-          shellcheck rootfs*/opt/docker/bin/service.d/*.sh rootfs*/opt/docker/provision/entrypoint.d/*.sh rootfs/opt/docker/etc/print.sh
+          shellcheck rootfs/*/opt/docker/bin/*.sh rootfs/base/opt/docker/bin/service.d/*.sh rootfs/*/opt/docker/provision/entrypoint.d/*.sh rootfs/base/opt/docker/etc/print.sh
 
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.1.0
