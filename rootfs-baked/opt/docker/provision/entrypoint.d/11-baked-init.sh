@@ -23,17 +23,17 @@ if [ -z "$(ls -A "$APPLICATION_PATH")" ]; then
 
     # The .env must exist before key:generate can write the APP_KEY into it
     p '> generate env file' 'cyan'
-    /opt/docker/bin/service.d/deploy-command.sh env:update
+    /opt/docker/bin/service.d/run-command.sh env:update
 
     p '> generate app key' 'cyan'
-    /opt/docker/bin/service.d/deploy-command.sh artisan:key:generate --force
+    /opt/docker/bin/service.d/run-command.sh artisan:key:generate --force
 fi
 
 p '=> performing deploy now' 'purple'
 
 IFS=$DEPLOY_COMMAND_SEPARATOR; for command in $DEPLOY_COMMANDS; do
     p "> $command" 'cyan'
-    /opt/docker/bin/service.d/deploy-command.sh "$command"
+    /opt/docker/bin/service.d/run-command.sh "$command"
 done
 
 p '=> deploy completed' 'purple'

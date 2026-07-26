@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Provisioning command dispatcher: executes a single deploy command token.
-# See the README for the full command DSL reference.
+# Command dispatcher: executes a single command token from the DSL
+# (deploy steps, detect commands). See the README for the full reference.
 set -e
 . /opt/docker/etc/print.sh
 
@@ -14,6 +14,12 @@ command=${command%"${command##*[![:space:]]}"}
 case $command in
     -*)
         p "skipping command since it starts with '-'" 'yellow'
+        ;;
+    git:detect)
+        # Exit 0 when upstream moved past HEAD (deploy needed), 1 otherwise.
+        # Owns the fetch so custom detect commands can fetch differently.
+        git fetch
+        [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]
         ;;
     git:update)
         current_branch=$(git symbolic-ref --short HEAD)
@@ -40,6 +46,6 @@ case $command in
         eval "/opt/docker/bin/service.d/laravel-artisan.sh ${command#artisan:}"
         ;;
     *)
-        eval "$command" || p "exited with $?" 'red'
+        eval "$command"
         ;;
 esac
