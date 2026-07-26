@@ -32,6 +32,11 @@ RUN printf '*\t*\t*\t*\t*\t/opt/docker/bin/service.d/autopull.sh\n' >> /etc/cron
 # Git branch to deploy; empty means the remote default branch
 ENV BRANCH=
 
+# Private-repository ssh credentials (see git-credentials.sh):
+# private deploy key (raw PEM or base64) and optional pinned host key(s)
+ENV GIT_SSH_KEY=
+ENV GIT_SSH_KNOWN_HOSTS=
+
 # Set the default deploy commands and their separator
 ENV DEPLOY_COMMAND_SEPARATOR=; \
     DEPLOY_COMMANDS="\

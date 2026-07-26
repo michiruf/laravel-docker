@@ -28,6 +28,10 @@ if [ -z "$GIT_URL" ]; then
     exit 1
 fi
 
+# Provision ssh credentials for private repositories (no-op when GIT_SSH_KEY
+# is unset); sourced so the exported GIT_SSH_COMMAND applies to clone/fetch
+. /opt/docker/bin/service.d/git-credentials.sh
+
 cd "$APPLICATION_PATH"
 
 # Flag the directory to be usable by both, root and the application user.
