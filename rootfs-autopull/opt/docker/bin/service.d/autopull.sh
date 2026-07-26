@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 # Autopull provisioning trigger, executed by cron every minute:
 # - first run: clones GIT_URL and runs INITIAL_DEPLOY_COMMANDS + DEPLOY_COMMANDS
-# - subsequent runs: fetches and runs DEPLOY_COMMANDS when upstream changed
+# - subsequent runs: runs DEPLOY_COMMANDS when DETECT_COMMAND (default
+#   git:detect) reports an update, retrying failed deploys on the next tick
 # shellcheck shell=sh
 set -e
 . /opt/docker/etc/print.sh
@@ -13,14 +14,18 @@ exec 9>/var/run/autopull.lock
 flock -n 9 || exit 0
 
 # Run a separator-delimited list of deploy commands: run_commands SEPARATOR LIST
+# Returns the exit code of the first failing command. The explicit || return is
+# required: when called inside an 'if', set -e is suspended and the loop would
+# otherwise keep running past a failed step.
 run_commands() {
     IFS=$1; for command in $2; do
         p "> $command" 'cyan'
-        /opt/docker/bin/service.d/deploy-command.sh "$command"
+        /opt/docker/bin/service.d/run-command.sh "$command" || return $?
     done
 }
 
 perform_deploy=false
+failed_marker=/var/run/autopull.deploy-failed
 
 # Check if required GIT_URL exists
 if [ -z "$GIT_URL" ]; then
@@ -55,24 +60,40 @@ if [ ! -d ".git" ]; then
     fi
     echo 'Done'
 
-    run_commands "$INITIAL_DEPLOY_COMMAND_SEPARATOR" "$INITIAL_DEPLOY_COMMANDS"
+    if ! run_commands "$INITIAL_DEPLOY_COMMAND_SEPARATOR" "$INITIAL_DEPLOY_COMMANDS"; then
+        touch "$failed_marker"
+        p '=> initial provisioning failed, retrying deploy on next run' 'red'
+        exit 1
+    fi
 
     perform_deploy=true
 fi
 
-# Check if there is no new stuff and then exit
-# See https://stackoverflow.com/questions/3258243/check-if-pull-needed-in-git
-git fetch
-if [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]; then
-    p '=> detected changes in the git revision' 'purple'
+# Check for an update via the detect command (default: git:detect, which
+# fetches and compares HEAD against upstream). Exit code 0 means deploy.
+# A leftover failure marker forces a retry of a previously failed deploy,
+# which git:detect alone would miss once git:update already moved HEAD.
+if [ "$perform_deploy" != true ]; then
+    if [ -f "$failed_marker" ]; then
+        p '=> retrying previously failed deploy' 'purple'
 
-    perform_deploy=true
+        perform_deploy=true
+    elif /opt/docker/bin/service.d/run-command.sh "${DETECT_COMMAND:-git:detect}"; then
+        p '=> detected changes in the git revision' 'purple'
+
+        perform_deploy=true
+    fi
 fi
 
 if [ "$perform_deploy" = true ] ; then
     p '=> performing deploy now' 'purple'
 
-    run_commands "$DEPLOY_COMMAND_SEPARATOR" "$DEPLOY_COMMANDS"
+    if ! run_commands "$DEPLOY_COMMAND_SEPARATOR" "$DEPLOY_COMMANDS"; then
+        touch "$failed_marker"
+        p '=> deploy failed, retrying on next run' 'red'
+        exit 1
+    fi
+    rm -f "$failed_marker"
 
     p '> adjust rights' 'cyan'
     chown -R "$APPLICATION_UID":"$APPLICATION_GID" .

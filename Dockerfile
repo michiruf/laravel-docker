@@ -37,6 +37,9 @@ ENV BRANCH=
 ENV GIT_SSH_KEY=
 ENV GIT_SSH_KNOWN_HOSTS=
 
+# Command deciding whether an update occurred (exit 0 triggers a deploy)
+ENV DETECT_COMMAND=git:detect
+
 # Set the default deploy commands and their separator
 ENV DEPLOY_COMMAND_SEPARATOR=; \
     DEPLOY_COMMANDS="\

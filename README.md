@@ -63,13 +63,32 @@ split by `DEPLOY_COMMAND_SEPARATOR` (default `;`):
 | Token | Action |
 |---|---|
 | `-<anything>` | Skipped. Disable a single default without redefining the whole list. |
+| `git:detect` | `git fetch`, then exit 0 when upstream moved past HEAD (deploy needed), 1 otherwise. Default `DETECT_COMMAND`. |
 | `git:update` | `git reset --hard origin/<current branch>` |
 | `env:update` | Regenerate the application `.env` (see below) |
 | `composer:<args>` | Run composer, e.g. `composer:install --no-progress` |
 | `artisan:<args>` | Run artisan (guarded: fails when the app is not provisioned yet) |
 | `artisan?:<args>` | Optional artisan command: logs and continues when unsupported, e.g. `artisan?:horizon:terminate` on an app without horizon |
 | `permissions:fix` | `chown -R $APPLICATION_UID:$APPLICATION_GID .` |
-| anything else | Executed as raw shell (escape hatch); a failure is logged but does not abort |
+| anything else | Executed as raw shell (escape hatch) |
+
+A failing command aborts the deploy; the run is retried on the next cron tick
+until a deploy completes. Tolerate an expected failure explicitly with
+`artisan?:` or a `<command> || true` shell suffix.
+
+### Update detection (`DETECT_COMMAND`)
+
+Every cron tick, autopull runs `DETECT_COMMAND` (any DSL token, default
+`git:detect`) — exit code 0 triggers a deploy. Override it to customize what
+counts as an update, e.g. only changes under a subpath of a monorepo:
+
+```yaml
+DETECT_COMMAND: git fetch && ! git diff --quiet HEAD @{u} -- apps/api
+```
+
+The detect command owns its own `git fetch` (so a tag-based detector can fetch
+tags instead); the built-in `git:detect` fetches and compares HEAD against
+upstream.
 
 Defaults (see [Dockerfile](Dockerfile)):
 
@@ -115,6 +134,7 @@ A plain `laravel/laravel` skeleton therefore runs with zero configuration.
 | `BRANCH` | empty (autopull) | Branch to deploy; empty uses the remote default branch |
 | `GIT_SSH_KEY` | empty (autopull) | Private deploy key for ssh URLs, raw PEM or base64 |
 | `GIT_SSH_KNOWN_HOSTS` | empty (autopull) | Pinned host key line(s); empty trusts on first use |
+| `DETECT_COMMAND` | `git:detect` | DSL token deciding whether to deploy (exit 0 = deploy) |
 | `DEPLOY_COMMANDS` | see above | Commands run on every deploy |
 | `DEPLOY_COMMAND_SEPARATOR` | `;` | Token separator |
 | `INITIAL_DEPLOY_COMMANDS` | see above | Commands run on first provision (autopull) |

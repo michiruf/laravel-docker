@@ -73,17 +73,20 @@ teardown_file() {
 
 @test "autopull: deploy command DSL semantics" {
     # '-' prefix skips
-    run compose exec -T app /opt/docker/bin/service.d/deploy-command.sh -artisan:migrate
+    run compose exec -T app /opt/docker/bin/service.d/run-command.sh -artisan:migrate
     [ "$status" -eq 0 ]
     [[ "$output" == *skipping* ]]
 
     # 'artisan?:' tolerates commands the application does not support
-    run compose exec -T app /opt/docker/bin/service.d/deploy-command.sh 'artisan?:horizon:terminate'
+    run compose exec -T app /opt/docker/bin/service.d/run-command.sh 'artisan?:horizon:terminate'
     [ "$status" -eq 0 ]
     [[ "$output" == *optional* ]]
 
-    # raw shell commands may fail without aborting the pipeline
-    run compose exec -T app /opt/docker/bin/service.d/deploy-command.sh 'false'
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"exited with"* ]]
+    # raw shell command failures propagate (abort the deploy, trigger a retry)
+    run compose exec -T app /opt/docker/bin/service.d/run-command.sh 'false'
+    [ "$status" -ne 0 ]
+
+    # git:detect exits 1 when HEAD matches upstream (nothing to deploy)
+    run compose exec -T app sh -c 'cd "$APPLICATION_PATH" && /opt/docker/bin/service.d/run-command.sh git:detect'
+    [ "$status" -eq 1 ]
 }
