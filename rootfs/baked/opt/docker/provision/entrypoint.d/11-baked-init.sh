@@ -17,7 +17,7 @@ if [ -z "$(ls -A "$APPLICATION_PATH")" ]; then
 
     # The .env must exist before key:generate can write the APP_KEY into it
     p '> generate env file' 'cyan'
-    /opt/docker/bin/run-command.sh env:update
+    . /opt/docker/etc/laravel-env.sh
 
     p '> generate app key' 'cyan'
     /opt/docker/bin/run-command.sh artisan:key:generate --force

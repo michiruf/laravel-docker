@@ -46,12 +46,21 @@ app_key() {
     compose exec -T app sh -c 'grep "^APP_KEY=" "$APPLICATION_PATH/.env"'
 }
 
-# The .env must have been synthesized from the container environment.
-assert_env_synthesized() {
+# The application must be configured from the container environment. The
+# LARAVEL_* variables are handed over as environment variables, so this asserts
+# the value the application resolves - the .env carries no settings of its own.
+assert_configured_from_environment() {
+    run compose exec -T app /opt/docker/bin/laravel-artisan.sh config:show database.default
+    [ "$status" -eq 0 ]
+    [[ "$output" == *mysql* ]]
+
+    run compose exec -T app /opt/docker/bin/laravel-artisan.sh config:show database.connections.mysql.host
+    [ "$status" -eq 0 ]
+    [[ "$output" == *mysql* ]]
+
+    # the generated APP_KEY does still live in the .env
     run compose exec -T app sh -c 'cat "$APPLICATION_PATH/.env"'
     [ "$status" -eq 0 ]
-    [[ "$output" == *"DB_HOST=mysql"* ]]
-    [[ "$output" == *"DB_CONNECTION=mysql"* ]]
     [[ "$output" == *"APP_KEY=base64:"* ]]
 }
 

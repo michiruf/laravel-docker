@@ -54,8 +54,8 @@ teardown_file() {
     wait_for_log "package 'laravel/pulse' is not installed, idling" 60
 }
 
-@test "autopull: provisioning synthesized .env from container environment" {
-    assert_env_synthesized
+@test "autopull: application is configured from the container environment" {
+    assert_configured_from_environment
 }
 
 @test "autopull: upstream change triggers a redeploy, APP_KEY is preserved" {

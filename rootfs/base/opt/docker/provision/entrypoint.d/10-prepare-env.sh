@@ -12,25 +12,33 @@ is_reserved_name() {
     esac
 }
 
-# Append env vars matching a prefix to /etc/environment as properly
-# single-quoted assignments, so values containing spaces or shell
-# metacharacters survive being sourced by the other scripts.
+# Hand env vars matching a prefix to /etc/environment, so it can get read again by the
+# /opt/docker/etc/laravel-env.sh script, which is sourced everywhere.
+# The reason behind that is, that we create an alias for LARAVEL_ prefixed variables without
+# that alias.
 prepare_stripped_env() {
-    # sed only emits valid variable names and, unlike grep, exits 0 when
-    # nothing matches — this script is sourced by the webdevops entrypoint
-    # under 'set -o pipefail -o errexit', where a no-match grep would kill
-    # the whole container startup
-    printenv | sed -n "s/^\($1[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r name; do
-        if is_reserved_name "${name#"$1"}"; then
-            p "  refusing '$name', '${name#"$1"}' is reserved by the container" 'yellow'
+    prefix="$1"
+
+    # sed only emits valid variable names, skipping e.g. continuation lines
+    # of multiline values that happen to match the prefix
+    printenv | sed -n "s/^\(${prefix}[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r original_var_name; do
+        var_name="${original_var_name#"$prefix"}"
+        var_value=$(printenv "$original_var_name") || continue
+
+        if is_reserved_name "$var_name"; then
+            p "  refusing '$original_var_name', '$var_name' is reserved by the container" 'yellow'
             continue
         fi
 
-        value=$(printenv "$name") || continue
-        escaped=$(printf '%s' "$value" | sed "s/'/'\\\\''/g")
-        printf "%s='%s'\n" "$name" "$escaped" >> /etc/environment
+        # Escape sed replacement metacharacters (\ & and the | delimiter), otherwise
+        # values like generated passwords corrupt the .env or abort the substitution
+        escaped_var_value=$(printf '%s' "$var_value" | sed "s/'/'\\\\''/g")
+        printf "%s='%s'\n" "$var_name" "$escaped_var_value" >> /etc/environment
     done
 }
 
 p "> preparing and stripping docker environment for laravel (env with prefix 'LARAVEL_')" 'cyan'
 prepare_stripped_env 'LARAVEL_'
+
+# Source again to export the envs regularly
+. /opt/docker/etc/laravel-env.sh

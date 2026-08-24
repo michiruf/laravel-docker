@@ -25,9 +25,6 @@ case $command in
         current_branch=$(git symbolic-ref --short HEAD)
         git reset --hard "origin/$current_branch"
         ;;
-    env:update)
-        /opt/docker/bin/laravel-env.sh
-        ;;
     permissions:fix)
         chown -R "$APPLICATION_UID":"$APPLICATION_GID" .
         ;;
