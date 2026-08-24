@@ -47,7 +47,7 @@ teardown_file() {
 }
 
 @test "baked: artisan is usable inside the container" {
-    compose exec -T app /opt/docker/bin/service.d/laravel-artisan.sh --version
+    compose exec -T app /opt/docker/bin/laravel-artisan.sh --version
 }
 
 @test "baked: no root-owned files in the application" {

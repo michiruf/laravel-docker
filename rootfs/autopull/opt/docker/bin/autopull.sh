@@ -20,7 +20,7 @@ flock -n 9 || exit 0
 run_commands() {
     IFS=$1; for command in $2; do
         p "> $command" 'cyan'
-        /opt/docker/bin/service.d/run-command.sh "$command" || return $?
+        /opt/docker/bin/run-command.sh "$command" || return $?
     done
 }
 
@@ -35,7 +35,7 @@ fi
 
 # Provision ssh credentials for private repositories (no-op when GIT_SSH_KEY
 # is unset); sourced so the exported GIT_SSH_COMMAND applies to clone/fetch
-. /opt/docker/bin/service.d/git-credentials.sh
+. /opt/docker/bin/git-credentials.sh
 
 cd "$APPLICATION_PATH"
 
@@ -78,7 +78,7 @@ if [ "$perform_deploy" != true ]; then
         p '=> retrying previously failed deploy' 'purple'
 
         perform_deploy=true
-    elif /opt/docker/bin/service.d/run-command.sh "${DETECT_COMMAND:-git:detect}"; then
+    elif /opt/docker/bin/run-command.sh "${DETECT_COMMAND:-git:detect}"; then
         p '=> detected changes in the git revision' 'purple'
 
         perform_deploy=true

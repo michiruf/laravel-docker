@@ -16,7 +16,7 @@ RUN sed -i 's|fastcgi_param.\+SCRIPT_FILENAME.\+\$request_filename\;|fastcgi_par
 
 # Provisioning engine: scripts, entrypoints and supervisor programs
 # (file modes are preserved from the build context)
-COPY rootfs/ /
+COPY rootfs/base/ /
 
 # Patch the web document root from webdevops container for laravels structure
 ENV WEB_DOCUMENT_ROOT=${APPLICATION_PATH}/public
@@ -24,10 +24,10 @@ ENV WEB_DOCUMENT_ROOT=${APPLICATION_PATH}/public
 
 FROM base AS autopull
 
-COPY rootfs-autopull/ /
+COPY rootfs/autopull/ /
 
 # Register a crontab to periodically run the autopull deploy trigger
-RUN printf '*\t*\t*\t*\t*\t/opt/docker/bin/service.d/autopull.sh\n' >> /etc/crontabs/root
+RUN printf '*\t*\t*\t*\t*\t/opt/docker/bin/autopull.sh\n' >> /etc/crontabs/root
 
 # Git branch to deploy; empty means the remote default branch
 ENV BRANCH=
@@ -65,7 +65,7 @@ ENV INITIAL_DEPLOY_COMMAND_SEPARATOR=; \
 
 FROM base AS baked
 
-COPY rootfs-baked/ /
+COPY rootfs/baked/ /
 
 # Set the default deploy commands and their separator
 ENV DEPLOY_COMMAND_SEPARATOR=; \

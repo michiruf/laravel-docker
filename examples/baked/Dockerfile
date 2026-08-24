@@ -4,4 +4,4 @@
 FROM laravel-docker:baked
 
 COPY --chown=$APPLICATION_UID:$APPLICATION_GID . /app-src
-RUN /opt/docker/bin/service.d/baked-build.sh
+RUN /opt/docker/bin/baked-build.sh

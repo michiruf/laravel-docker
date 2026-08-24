@@ -26,7 +26,7 @@ case $command in
         git reset --hard "origin/$current_branch"
         ;;
     env:update)
-        /opt/docker/bin/service.d/laravel-env.sh
+        /opt/docker/bin/laravel-env.sh
         ;;
     permissions:fix)
         chown -R "$APPLICATION_UID":"$APPLICATION_GID" .
@@ -38,12 +38,12 @@ case $command in
         # Optional artisan command: tolerate absence/failure (e.g. horizon:terminate
         # on an application that does not ship horizon)
         args=${command#"artisan?:"}
-        eval "/opt/docker/bin/service.d/laravel-artisan.sh $args" \
+        eval "/opt/docker/bin/laravel-artisan.sh $args" \
             || p "optional artisan command '$args' failed or is unavailable, continuing" 'yellow'
         ;;
     artisan:*)
         # artisan wrapper script already has ansi
-        eval "/opt/docker/bin/service.d/laravel-artisan.sh ${command#artisan:}"
+        eval "/opt/docker/bin/laravel-artisan.sh ${command#artisan:}"
         ;;
     *)
         eval "$command"
