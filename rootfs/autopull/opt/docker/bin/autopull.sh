@@ -14,15 +14,17 @@ exec 9>/var/run/autopull.lock
 flock -n 9 || exit 0
 
 # Run a separator-delimited list of deploy commands: run_commands SEPARATOR LIST
-# Returns the exit code of the first failing command. The explicit || return is
+# Returns the exit code of the first failing command. The explicit || exit is
 # required: when called inside an 'if', set -e is suspended and the loop would
 # otherwise keep running past a failed step.
-run_commands() {
-    IFS=$1; for command in $2; do
+# The body is a subshell so the IFS needed for splitting stays contained.
+run_commands() (
+    IFS=$1
+    for command in $2; do
         p "> $command" 'cyan'
-        /opt/docker/bin/run-command.sh "$command" || return $?
+        /opt/docker/bin/run-command.sh "$command" || exit $?
     done
-}
+)
 
 perform_deploy=false
 failed_marker=/var/run/autopull.deploy-failed

@@ -31,9 +31,17 @@ fi
 
 p '=> performing deploy now' 'purple'
 
-IFS=$DEPLOY_COMMAND_SEPARATOR; for command in $DEPLOY_COMMANDS; do
-    p "> $command" 'cyan'
-    /opt/docker/bin/run-command.sh "$command"
-done
+# Split the command list in a subshell: the webdevops entrypoint sources this
+# file rather than executing it, so an IFS left at the separator would leak into
+# the entrypoint scripts running after us. The 20-php* ones iterate over
+# unquoted $(envListVars ...) output, which needs the default IFS to split the
+# one-name-per-line listing, and abort container startup otherwise.
+(
+    IFS=$DEPLOY_COMMAND_SEPARATOR
+    for command in $DEPLOY_COMMANDS; do
+        p "> $command" 'cyan'
+        /opt/docker/bin/run-command.sh "$command"
+    done
+)
 
 p '=> deploy completed' 'purple'
