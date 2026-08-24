@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [ autopull, baked, autopull-private ]
+        variant: [ autopull, baked, autopull-private, env ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

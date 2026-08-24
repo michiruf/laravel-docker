@@ -27,15 +27,33 @@ fi
 # with the existing ones from docker by loading this file again
 # We could also go the other way around and just take the env without prefixing first, but we introduced
 # the prefix to not have any collision in environment variables and should stay with this approach
-# Undo the quoting a .env value may carry, so the value we re-inject below is
-# the literal one and does not accumulate another layer of quotes on every run.
-# Mirrors the quoting applied when writing (see quote_env_value); phpdotenv
-# single quotes are fully literal, so those only need the quotes stripped.
+# Read a raw .env value the way phpdotenv does, so what we carry over is the
+# value the application actually saw: a quoted value ends at its closing quote
+# and whatever follows is a comment, an unquoted value ends at the first '#'
+# and keeps no trailing whitespace. This also undoes the escaping applied when
+# writing (see quote_env_value), so a value a previous run wrote comes back as
+# the literal it stood for instead of gaining another layer of quotes.
 unquote_env_value() {
     case $1 in
-        \"*\") printf '%s' "$1" | sed -e 's/^"//' -e 's/"$//' -e 's/\\\([\\"$]\)/\1/g' ;;
-        \'*\') printf '%s' "$1" | sed -e "s/^'//" -e "s/'\$//" ;;
-        *)     printf '%s' "$1" ;;
+        \"*)
+            # Hide escaped backslashes and quotes so the first '"' left is the
+            # closing one, then restore them as the literal characters
+            esc_bs=$(printf '\001')
+            esc_dq=$(printf '\002')
+            value=$(printf '%s' "$1" | sed -e "s/\\\\\\\\/$esc_bs/g" -e "s/\\\\\"/$esc_dq/g")
+            value=${value#\"}
+            value=${value%%\"*}
+            printf '%s' "$value" | sed -e 's/\\\$/$/g' -e "s/$esc_dq/\"/g" -e "s/$esc_bs/\\\\/g"
+            ;;
+        \'*)
+            # phpdotenv single quotes carry no escapes, so the next one closes
+            value=${1#\'}
+            printf '%s' "${value%%\'*}"
+            ;;
+        *)
+            value=${1%%#*}
+            printf '%s' "${value%"${value##*[![:space:]]}"}"
+            ;;
     esac
 }
 
