@@ -100,6 +100,23 @@ B='"'"'My # App'"'"'')
     [ "$(effective "$dir" V)" = 'it'"'"'s "q" \ ${VAR} end' ]
 }
 
+@test "env: a multiline LARAVEL_ value is written whole" {
+    # A newline in the value used to terminate the sed replacement mid-script,
+    # which failed the whole run and left the variable unset
+    key='-----BEGIN PRIVATE KEY-----
+MIIBVgIBADANBgkqh
+-----END PRIVATE KEY-----'
+    dir=$(fixture 'PRIVATE_KEY=
+APP_NAME=Example' 'PRIVATE_KEY=
+APP_NAME=Example')
+
+    env_update "$dir" -e "LARAVEL_PRIVATE_KEY=$key" -e 'LARAVEL_APP_NAME=My App'
+
+    [ "$(effective "$dir" PRIVATE_KEY)" = "$key" ]
+    # the rest of the file is still substituted correctly
+    [ "$(effective "$dir" APP_NAME)" = 'My App' ]
+}
+
 @test "env: APP_KEY is preserved and repeated runs are idempotent" {
     dir=$(fixture 'APP_KEY=
 APP_NAME=Example' 'APP_KEY=base64:AAAA/BBB+CCC=

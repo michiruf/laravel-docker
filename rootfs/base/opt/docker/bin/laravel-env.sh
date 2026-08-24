@@ -12,6 +12,9 @@ set -e
 set -a; . /etc/environment; set +a
 
 prefix="LARAVEL_"
+# Stands in for a newline while a value is passed through sed (see below); a
+# control character so it cannot collide with anything in a real .env
+newline_placeholder=$(printf '\001')
 laravel_env_file=${APPLICATION_ENV_FILE:-"$APPLICATION_PATH/.env"}
 laravel_example_env_file=${APPLICATION_ENV_EXAMPLE_FILE:-"$APPLICATION_PATH/.env.example"}
 
@@ -72,6 +75,9 @@ quote_env_value() {
     esac
 }
 
+# Known limitation: this reads line by line, so a multiline value is carried
+# over as its first line only. It does not affect a multiline LARAVEL_* value,
+# which the container environment re-supplies below on every run.
 if [ -f "$laravel_env_file" ]; then
     while IFS= read -r line; do
         name=${line%%=*}
@@ -95,10 +101,23 @@ printenv | sed -n "s/^\(${prefix}[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS=
 
     # Quote first (for the dotenv parser), then escape sed replacement
     # metacharacters (\ & and the | delimiter), otherwise values like generated
-    # passwords corrupt the .env or abort the substitution
+    # passwords corrupt the .env or abort the substitution.
+    # A newline in the replacement would end the s command mid-script, so
+    # multiline values (deploy keys, certificates) travel as a placeholder and
+    # are turned back into newlines once every substitution is done.
     quoted_var_value=$(quote_env_value "$var_value")
-    escaped_var_value=$(printf '%s' "$quoted_var_value" | sed 's/[\\&|]/\\&/g')
+    escaped_var_value=$(printf '%s' "$quoted_var_value" \
+        | sed 's/[\\&|]/\\&/g' | tr '\n' "$newline_placeholder")
 
     # Anchored at line start so e.g. APP_NAME does not also match VITE_APP_NAME
     sed -i "s|^\(# \?\)\?$var_name=.*|$var_name=$escaped_var_value|" "$laravel_env_file"
 done
+
+# Restore the newlines of any multiline value. Written through a temporary file
+# and copied back, so the .env keeps its mode and ownership.
+if grep -q "$newline_placeholder" "$laravel_env_file"; then
+    tmp_env_file=$(mktemp)
+    tr "$newline_placeholder" '\n' < "$laravel_env_file" > "$tmp_env_file"
+    cat "$tmp_env_file" > "$laravel_env_file"
+    rm -f "$tmp_env_file"
+fi
