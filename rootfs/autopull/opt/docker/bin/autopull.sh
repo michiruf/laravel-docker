@@ -26,6 +26,11 @@ run_commands() {
 
 perform_deploy=false
 failed_marker=/var/run/autopull.deploy-failed
+# Set right after the clone and cleared once the initial commands succeeded.
+# It lives inside .git, so it is tied to this checkout (on the application
+# volume) rather than to the container: a deployment provisioned by an earlier
+# image has no marker and is correctly treated as already initialized.
+initial_marker=.git/autopull-initial-pending
 
 # Check if required GIT_URL exists
 if [ -z "$GIT_URL" ]; then
@@ -60,11 +65,21 @@ if [ ! -d ".git" ]; then
     fi
     echo 'Done'
 
+    touch "$initial_marker"
+fi
+
+# The initial commands are not a subset of DEPLOY_COMMANDS - they generate the
+# APP_KEY. Retrying them has to stay an initial run until they succeed once:
+# falling back to a plain deploy would leave the application without a key
+# while every following run reports a completed deploy.
+if [ -f "$initial_marker" ]; then
+    p '=> performing initial provisioning now' 'purple'
+
     if ! run_commands "$INITIAL_DEPLOY_COMMAND_SEPARATOR" "$INITIAL_DEPLOY_COMMANDS"; then
-        touch "$failed_marker"
-        p '=> initial provisioning failed, retrying deploy on next run' 'red'
+        p '=> initial provisioning failed, retrying on next run' 'red'
         exit 1
     fi
+    rm -f "$initial_marker"
 
     perform_deploy=true
 fi
