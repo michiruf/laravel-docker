@@ -5,7 +5,7 @@
 #   git:detect) reports an update, retrying failed deploys on the next tick
 # shellcheck shell=sh
 set -e
-. /opt/docker/etc/print.sh
+. /opt/docker/etc/laravel-env.sh
 
 # A deploy can easily take longer than the one-minute cron interval (initial
 # clone + composer install). Hold an exclusive lock so overlapping cron ticks

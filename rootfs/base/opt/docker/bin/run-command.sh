@@ -2,7 +2,7 @@
 # Command dispatcher: executes a single command token from the DSL
 # (deploy steps, detect commands). See the README for the full reference.
 set -e
-. /opt/docker/etc/print.sh
+. /opt/docker/etc/laravel-env.sh
 
 # Trim surrounding whitespace (pure parameter expansion; unlike xargs this
 # does not mangle quotes or backslashes)

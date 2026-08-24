@@ -1,12 +1,7 @@
 #!/usr/bin/env sh
 # Guarded artisan wrapper: refuses to run before the application is provisioned.
 set -e
-. /opt/docker/etc/print.sh
-
-# Load environment file
-# 'set -a' ensures they are treated as exported
-# See https://superuser.com/a/1240860
-set -a; . /etc/environment; set +a
+. /opt/docker/etc/laravel-env.sh
 
 fail() {
     p "cannot execute artisan command \"$cmd\" yet: $1" 'red'

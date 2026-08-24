@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # shellcheck shell=sh
 set -e
-. /opt/docker/etc/print.sh
+. /opt/docker/etc/laravel-env.sh
 
 # Names the container itself runs on. Replacing one of these breaks every
 # command that runs afterwards, so they are refused rather than carried over.

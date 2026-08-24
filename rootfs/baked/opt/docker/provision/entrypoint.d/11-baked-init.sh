@@ -3,14 +3,8 @@
 # - first run (empty application path): moves /app-src into place and generates the APP_KEY
 # - every run: executes DEPLOY_COMMANDS
 # shellcheck shell=sh
-# shellcheck disable=SC1091 # /etc/environment only exists inside the container
 set -e
-. /opt/docker/etc/print.sh
-
-# Load environment file
-# 'set -a' ensures they are treated as exported
-# See https://superuser.com/a/1240860
-set -a; . /etc/environment; set +a
+. /opt/docker/etc/laravel-env.sh
 
 cd "$APPLICATION_PATH"
 

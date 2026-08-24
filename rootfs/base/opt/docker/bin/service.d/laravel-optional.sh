@@ -13,12 +13,7 @@
 # - Once runnable, exec's into artisan so supervisor signals reach the process
 #   directly (keeps e.g. horizon's graceful drain via stopwaitsecs intact).
 set -e
-. /opt/docker/etc/print.sh
-
-# Load environment file
-# 'set -a' ensures they are treated as exported
-# See https://superuser.com/a/1240860
-set -a; . /etc/environment; set +a
+. /opt/docker/etc/laravel-env.sh
 
 package=$1
 shift

@@ -3,7 +3,7 @@
 # the application source was copied to /app-src.
 # shellcheck shell=sh
 set -e
-. /opt/docker/etc/print.sh
+. /opt/docker/etc/laravel-env.sh
 
 p '> installing composer dependencies for baked application' 'cyan'
 cd /app-src
