@@ -1,6 +1,6 @@
 # Consumer Dockerfile for the baked variant: copy your application in and build it.
 # In your own project, replace the FROM with the published image:
-#   FROM ghcr.io/michiruf/laravel:baked-latest
+#   FROM ghcr.io/michiruf/laravel-docker:baked-latest
 FROM laravel-docker:baked
 
 COPY --chown=$APPLICATION_UID:$APPLICATION_GID . /app-src

@@ -33,7 +33,7 @@ stack with mysql and redis.
 Add a `Dockerfile` next to the Laravel application:
 
 ```dockerfile
-FROM ghcr.io/michiruf/laravel:baked-latest
+FROM ghcr.io/michiruf/laravel-docker:baked-latest
 COPY --chown=$APPLICATION_UID:$APPLICATION_GID . /app-src
 RUN cd /app-src \
     && composer install --no-dev --no-progress --optimize-autoloader --ansi \
@@ -54,11 +54,11 @@ mysql and redis.
 
 ## Variants
 
-| Image                                      | Deployment model                                                                                       |
-|--------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| `ghcr.io/michiruf/laravel:autopull-latest` | Pulls a git repository and deploys again when it changes (cron, every minute).                         |
-| `ghcr.io/michiruf/laravel:baked-latest`    | Starter image: the application is copied in at build time, provisioning runs on first container start. |
-| `ghcr.io/michiruf/laravel:base-latest`     | Provisioning engine only, no deploy trigger. Base for a custom variant.                                |
+| Image                                             | Deployment model                                                                                       |
+|---------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| `ghcr.io/michiruf/laravel-docker:autopull-latest` | Pulls a git repository and deploys again when it changes (cron, every minute).                         |
+| `ghcr.io/michiruf/laravel-docker:baked-latest`    | Starter image: the application is copied in at build time, provisioning runs on first container start. |
+| `ghcr.io/michiruf/laravel-docker:base-latest`     | Provisioning engine only, no deploy trigger. Base for a custom variant.                                |
 
 ### Autopull
 
@@ -200,7 +200,7 @@ are configurable, for example `APPLICATION_PATH`, `APPLICATION_UID`,
 PHP extensions and system packages can be added on top of the image, for example:
 
 ```dockerfile
-FROM ghcr.io/michiruf/laravel:autopull-latest
+FROM ghcr.io/michiruf/laravel-docker:autopull-latest
 RUN set -x \
   && apk-install $PHPIZE_DEPS linux-headers imap-dev openssl-dev krb5-dev \
   && pecl install imap \

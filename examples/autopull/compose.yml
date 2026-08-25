@@ -1,7 +1,7 @@
 services:
   app:
     # In production, use the published image instead of building locally:
-    #   image: ghcr.io/michiruf/laravel:autopull-latest
+    #   image: ghcr.io/michiruf/laravel-docker:autopull-latest
     build:
       context: ../..
       target: autopull
