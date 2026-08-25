@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # shellcheck shell=sh
 set -e
-. /opt/docker/etc/laravel-env.sh
+. /opt/docker/etc/print.sh # we must not load the current env to avoid any conflicts
 
 # Names the container itself runs on. Replacing one of these breaks every
 # command that runs afterwards, so they are refused rather than carried over.
@@ -40,5 +40,5 @@ prepare_stripped_env() {
 p "> preparing and stripping docker environment for laravel (env with prefix 'LARAVEL_')" 'cyan'
 prepare_stripped_env 'LARAVEL_'
 
-# Source again to export the envs regularly
+# Source to export the envs regularly
 . /opt/docker/etc/laravel-env.sh
