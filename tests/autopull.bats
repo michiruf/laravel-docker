@@ -60,10 +60,11 @@ teardown_file() {
 
 @test "autopull: upstream change triggers a redeploy, APP_KEY is preserved" {
     app_key_before=$(app_key)
+    completed_before=$(log_count '=> deploy completed')
 
     # Rewind the checkout so it diverges from upstream; the next cron tick must redeploy
     compose exec -T app sh -c 'cd "$APPLICATION_PATH" && git reset --hard HEAD~1'
-    wait_for_log '=> deploy completed' 240 2
+    wait_for_log '=> deploy completed' 240 "$((completed_before + 1))"
 
     app_key_after=$(app_key)
     [ -n "$app_key_before" ]
@@ -75,9 +76,12 @@ teardown_file() {
     # A deploy that dies mid-run (failing command, crash, container recreate)
     # leaves the state file behind. git:detect cannot notice that on its own
     # once git:update already moved HEAD onto upstream.
+    resuming_before=$(log_count '=> resuming previously unfinished deploy')
+    completed_before=$(log_count '=> deploy completed')
+
     compose exec -T app sh -c 'echo deploy > "$APPLICATION_PATH/.git/autopull-state"'
-    wait_for_log '=> resuming previously unfinished deploy' 240
-    wait_for_log '=> deploy completed' 240 3
+    wait_for_log '=> resuming previously unfinished deploy' 240 "$((resuming_before + 1))"
+    wait_for_log '=> deploy completed' 240 "$((completed_before + 1))"
 
     # a completed deploy clears the state again
     run compose exec -T app sh -c 'test -e "$APPLICATION_PATH/.git/autopull-state"'

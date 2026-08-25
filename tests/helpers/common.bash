@@ -7,6 +7,11 @@ compose() {
     docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" "$@"
 }
 
+# Count how often the app service log contains a pattern so far.
+log_count() {
+    compose logs app 2>&1 | grep -c "$1" || true
+}
+
 # Wait until the app service log contains a pattern at least $3 times (default 1).
 # Dumps the full log and fails on timeout.
 wait_for_log() {
