@@ -1,0 +1,45 @@
+name: Publish Nightly Docker Images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Make this workflow runnable on github
+
+# A nightly that was superseded by a newer push is of no use anymore.
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    needs:
+      - test
+    strategy:
+      matrix:
+        target: [ base, autopull, baked ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Authenticate with Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Nightly Docker Image '${{ matrix.target }}'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ matrix.target }}-nightly
