@@ -23,8 +23,15 @@ Add a `Dockerfile` to your Laravel application:
 ```dockerfile
 FROM ghcr.io/michiruf/laravel:baked-latest
 COPY --chown=$APPLICATION_UID:$APPLICATION_GID . /app-src
-RUN /opt/docker/bin/baked-build.sh
+RUN cd /app-src \
+    && composer install --no-dev --no-progress --optimize-autoloader --ansi \
+    && chown -R "$APPLICATION_UID":"$APPLICATION_GID" /app-src
 ```
+
+Building the application is up to you: adjust the composer flags or add asset
+builds as your application needs them. `--no-dev` keeps development
+dependencies out of the image; drop it if your application needs them at
+runtime.
 
 Build and run it (see [examples/baked/compose.yml](examples/baked/compose.yml)
 for a full stack with mysql and redis). On first start the application is moved
