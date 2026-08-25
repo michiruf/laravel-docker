@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
-# Command dispatcher: executes a single command token from the DSL
-# (deploy steps, detect commands). See the README for the full reference.
+# shellcheck shell=sh
 set -e
 . /opt/docker/etc/laravel-env.sh
+# Command dispatcher: executes a single command token from the DSL
+# (deploy steps, detect commands). See the README for the full reference.
 
 # Trim surrounding whitespace (pure parameter expansion; unlike xargs this
 # does not mangle quotes or backslashes)

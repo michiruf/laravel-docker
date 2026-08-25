@@ -1,4 +1,7 @@
 #!/usr/bin/env sh
+# shellcheck shell=sh
+set -e
+. /opt/docker/etc/laravel-env.sh
 # Supervisor wrapper for artisan programs that may not exist in every application.
 #
 # Usage: laravel-optional.sh <composer-package|-> <artisan args...>
@@ -12,8 +15,6 @@
 #   skip the package check.
 # - Once runnable, exec's into artisan so supervisor signals reach the process
 #   directly (keeps e.g. horizon's graceful drain via stopwaitsecs intact).
-set -e
-. /opt/docker/etc/laravel-env.sh
 
 package=$1
 shift

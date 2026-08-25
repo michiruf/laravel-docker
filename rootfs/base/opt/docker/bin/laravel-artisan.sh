@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
-# Guarded artisan wrapper: refuses to run before the application is provisioned.
+# shellcheck shell=sh
 set -e
 . /opt/docker/etc/laravel-env.sh
+# Guarded artisan wrapper: refuses to run before the application is provisioned.
 
 fail() {
     p "cannot execute artisan command \"$cmd\" yet: $1" 'red'

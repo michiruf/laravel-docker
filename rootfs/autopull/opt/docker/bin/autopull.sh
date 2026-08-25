@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
+# shellcheck shell=sh
+set -e
+. /opt/docker/etc/laravel-env.sh
 # Autopull provisioning trigger, executed by cron every minute:
 # - first run: clones GIT_URL and runs INITIAL_DEPLOY_COMMANDS + DEPLOY_COMMANDS
 # - subsequent runs: runs DEPLOY_COMMANDS when DETECT_COMMAND (default
 #   git:detect) reports an update, retrying failed deploys on the next tick
-# shellcheck shell=sh
-set -e
-. /opt/docker/etc/laravel-env.sh
 
 # A deploy can easily take longer than the one-minute cron interval (initial
 # clone + composer install). Hold an exclusive lock so overlapping cron ticks
