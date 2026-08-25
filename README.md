@@ -1,4 +1,7 @@
-# laravel-docker
+# Laravel Docker
+
+[![Test](https://github.com/michiruf/laravel-docker/actions/workflows/test.yml/badge.svg)](https://github.com/michiruf/laravel-docker/actions/workflows/test.yml)
+[![Publish Docker Images](https://github.com/michiruf/laravel-docker/actions/workflows/publish.yml/badge.svg)](https://github.com/michiruf/laravel-docker/actions/workflows/publish.yml)
 
 Production container images for Laravel applications, built on
 [webdevops/php-nginx](https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-nginx.html)
@@ -10,11 +13,11 @@ every subsequent deploy — driven entirely by environment variables.
 
 ## Variants
 
-| Image | Deployment model |
-|---|---|
-| `ghcr.io/michiruf/laravel:base-latest` | Provisioning engine only, no deploy trigger. Extend it for custom variants. |
-| `ghcr.io/michiruf/laravel:autopull-latest` | Pulls a git repository and redeploys automatically when upstream changes (cron, every minute). |
-| `ghcr.io/michiruf/laravel:baked-latest` | Starter image: copy your application in at build time, provisioning runs on first container start. |
+| Image                                      | Deployment model                                                                                   |
+|--------------------------------------------|----------------------------------------------------------------------------------------------------|
+| `ghcr.io/michiruf/laravel:base-latest`     | Provisioning engine only, no deploy trigger. Extend it for custom variants.                        |
+| `ghcr.io/michiruf/laravel:autopull-latest` | Pulls a git repository and redeploys automatically when upstream changes (cron, every minute).     |
+| `ghcr.io/michiruf/laravel:baked-latest`    | Starter image: copy your application in at build time, provisioning runs on first container start. |
 
 ## Quickstart: baked
 
@@ -67,16 +70,16 @@ trigger (first start / new commit)
 `DEPLOY_COMMANDS` (and `INITIAL_DEPLOY_COMMANDS`) are lists of command tokens,
 split by `DEPLOY_COMMAND_SEPARATOR` (default `;`):
 
-| Token | Action |
-|---|---|
-| `-<anything>` | Skipped. Disable a single default without redefining the whole list. |
-| `git:detect` | `git fetch`, then exit 0 when upstream moved past HEAD (deploy needed), 1 otherwise. Default `DETECT_COMMAND`. |
-| `git:update` | `git reset --hard origin/<current branch>` |
-| `composer:<args>` | Run composer, e.g. `composer:install --no-progress` |
-| `artisan:<args>` | Run artisan (guarded: fails when the app is not provisioned yet) |
+| Token             | Action                                                                                                                     |
+|-------------------|----------------------------------------------------------------------------------------------------------------------------|
+| `-<anything>`     | Skipped. Disable a single default without redefining the whole list.                                                       |
+| `git:detect`      | `git fetch`, then exit 0 when upstream moved past HEAD (deploy needed), 1 otherwise. Default `DETECT_COMMAND`.             |
+| `git:update`      | `git reset --hard origin/<current branch>`                                                                                 |
+| `composer:<args>` | Run composer, e.g. `composer:install --no-progress`                                                                        |
+| `artisan:<args>`  | Run artisan (guarded: fails when the app is not provisioned yet)                                                           |
 | `artisan?:<args>` | Optional artisan command: logs and continues when unsupported, e.g. `artisan?:horizon:terminate` on an app without horizon |
-| `permissions:fix` | `chown -R $APPLICATION_UID:$APPLICATION_GID .` |
-| anything else | Executed as raw shell (escape hatch) |
+| `permissions:fix` | `chown -R $APPLICATION_UID:$APPLICATION_GID .`                                                                             |
+| anything else     | Executed as raw shell (escape hatch)                                                                                       |
 
 A failing command aborts the deploy; the run is retried on the next cron tick
 until a deploy completes. Autopull records the pending phase in
@@ -125,29 +128,29 @@ provisioned, then starts — or idles cleanly when the application does not use
 the package (re-checking periodically, so a deploy that adds the package starts
 the worker without a container restart):
 
-| Program | Runs | Requires |
-|---|---|---|
-| `laravel-scheduler` | `artisan schedule:work` | — |
-| `laravel-horizon` | `artisan horizon` | `laravel/horizon` installed |
-| `laravel-pulse` | `artisan pulse:check` | `laravel/pulse` installed |
+| Program             | Runs                    | Requires                    |
+|---------------------|-------------------------|-----------------------------|
+| `laravel-scheduler` | `artisan schedule:work` | —                           |
+| `laravel-horizon`   | `artisan horizon`       | `laravel/horizon` installed |
+| `laravel-pulse`     | `artisan pulse:check`   | `laravel/pulse` installed   |
 
 A plain `laravel/laravel` skeleton therefore runs with zero configuration.
 
 ## Environment reference
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `GIT_URL` | — (required, autopull) | Repository to deploy (https or ssh) |
-| `BRANCH` | empty (autopull) | Branch to deploy; empty uses the remote default branch |
-| `GIT_SSH_KEY` | empty (autopull) | Private deploy key for ssh URLs, raw PEM or base64 |
-| `GIT_SSH_KNOWN_HOSTS` | empty (autopull) | Pinned host key line(s); empty trusts on first use |
-| `DETECT_COMMAND` | `git:detect` | DSL token deciding whether to deploy (exit 0 = deploy) |
-| `DEPLOY_COMMANDS` | see [Dockerfile](Dockerfile) | Commands run on every deploy |
-| `DEPLOY_COMMAND_SEPARATOR` | `;` | Token separator |
-| `INITIAL_DEPLOY_COMMANDS` | see [Dockerfile](Dockerfile) | Commands run on first provision (autopull) |
-| `INITIAL_DEPLOY_COMMAND_SEPARATOR` | `;` | Token separator |
-| `LARAVEL_*` | — | Exported into the application environment (prefix stripped) |
-| `APPLICATION_PATH`, `APPLICATION_UID`, `APPLICATION_GID`, `WEB_DOCUMENT_ROOT`, … | | Inherited from the [webdevops base image](https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-nginx.html#environment-variables) |
+| Variable                                                                         | Default                      | Purpose                                                                                                                                                      |
+|----------------------------------------------------------------------------------|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `GIT_URL`                                                                        | — (required, autopull)       | Repository to deploy (https or ssh)                                                                                                                          |
+| `BRANCH`                                                                         | empty (autopull)             | Branch to deploy; empty uses the remote default branch                                                                                                       |
+| `GIT_SSH_KEY`                                                                    | empty (autopull)             | Private deploy key for ssh URLs, raw PEM or base64                                                                                                           |
+| `GIT_SSH_KNOWN_HOSTS`                                                            | empty (autopull)             | Pinned host key line(s); empty trusts on first use                                                                                                           |
+| `DETECT_COMMAND`                                                                 | `git:detect`                 | DSL token deciding whether to deploy (exit 0 = deploy)                                                                                                       |
+| `DEPLOY_COMMANDS`                                                                | see [Dockerfile](Dockerfile) | Commands run on every deploy                                                                                                                                 |
+| `DEPLOY_COMMAND_SEPARATOR`                                                       | `;`                          | Token separator                                                                                                                                              |
+| `INITIAL_DEPLOY_COMMANDS`                                                        | see [Dockerfile](Dockerfile) | Commands run on first provision (autopull)                                                                                                                   |
+| `INITIAL_DEPLOY_COMMAND_SEPARATOR`                                               | `;`                          | Token separator                                                                                                                                              |
+| `LARAVEL_*`                                                                      | —                            | Exported into the application environment (prefix stripped)                                                                                                  |
+| `APPLICATION_PATH`, `APPLICATION_UID`, `APPLICATION_GID`, `WEB_DOCUMENT_ROOT`, … |                              | Inherited from the [webdevops base image](https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-nginx.html#environment-variables) |
 
 ## Extending
 
