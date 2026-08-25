@@ -72,7 +72,6 @@ split by `DEPLOY_COMMAND_SEPARATOR` (default `;`):
 | `-<anything>` | Skipped. Disable a single default without redefining the whole list. |
 | `git:detect` | `git fetch`, then exit 0 when upstream moved past HEAD (deploy needed), 1 otherwise. Default `DETECT_COMMAND`. |
 | `git:update` | `git reset --hard origin/<current branch>` |
-| `env:update` | Regenerate the application `.env` (see below) |
 | `composer:<args>` | Run composer, e.g. `composer:install --no-progress` |
 | `artisan:<args>` | Run artisan (guarded: fails when the app is not provisioned yet) |
 | `artisan?:<args>` | Optional artisan command: logs and continues when unsupported, e.g. `artisan?:horizon:terminate` on an app without horizon |
@@ -99,23 +98,22 @@ The detect command owns its own `git fetch` (so a tag-based detector can fetch
 tags instead); the built-in `git:detect` fetches and compares HEAD against
 upstream.
 
-Defaults (see [Dockerfile](Dockerfile)):
-
-- autopull deploy: `artisan:down ; git:update ; composer:install --no-progress ; env:update ; artisan:storage:link ; artisan:optimize ; artisan:migrate --force ; permissions:fix ; artisan?:horizon:terminate ; artisan?:queue:restart ; artisan?:pulse:restart ; artisan:up`
-- autopull initial: `composer:install --no-progress ; env:update ; artisan:key:generate --force ; permissions:fix`
-- baked: `env:update ; artisan:storage:link ; artisan:optimize ; artisan:migrate --force ; permissions:fix`
-
+The defaults for all three variants are defined in the [Dockerfile](Dockerfile).
 Override the whole list via the environment, or prefix single commands with `-`
 to disable them.
 
-### `.env` synthesis (`env:update`)
+### Configuration from the container environment
 
-The application `.env` is regenerated from its `.env.example` on every deploy.
-Every container environment variable prefixed with `LARAVEL_` is injected with
-the prefix stripped: `LARAVEL_DB_HOST=mysql` on the container becomes
-`DB_HOST=mysql` in the `.env` (commented example lines are uncommented).
-Values already present in the current `.env` that are not overridden — notably
-the generated `APP_KEY` — are preserved across deploys.
+Every container environment variable prefixed with `LARAVEL_` is exported with
+the prefix stripped into every process the container runs: `LARAVEL_DB_HOST=mysql`
+on the container becomes `DB_HOST=mysql` for php-fpm, artisan and the deploy
+commands. Names that are not valid shell identifiers, or that the container
+itself runs on (`PATH`, `HOME`, `LANG`, …), are refused and logged.
+
+The application `.env` is never rewritten. It is only copied from `.env.example`
+when it does not exist yet, so `artisan key:generate` has a file to write the
+`APP_KEY` into. Laravel does not let the `.env` override variables that are
+already set, so the container environment wins over any value the `.env` carries.
 
 Result: application configuration lives entirely in your compose file or
 orchestrator; no `.env` files to manage on servers.
@@ -144,11 +142,11 @@ A plain `laravel/laravel` skeleton therefore runs with zero configuration.
 | `GIT_SSH_KEY` | empty (autopull) | Private deploy key for ssh URLs, raw PEM or base64 |
 | `GIT_SSH_KNOWN_HOSTS` | empty (autopull) | Pinned host key line(s); empty trusts on first use |
 | `DETECT_COMMAND` | `git:detect` | DSL token deciding whether to deploy (exit 0 = deploy) |
-| `DEPLOY_COMMANDS` | see above | Commands run on every deploy |
+| `DEPLOY_COMMANDS` | see [Dockerfile](Dockerfile) | Commands run on every deploy |
 | `DEPLOY_COMMAND_SEPARATOR` | `;` | Token separator |
-| `INITIAL_DEPLOY_COMMANDS` | see above | Commands run on first provision (autopull) |
+| `INITIAL_DEPLOY_COMMANDS` | see [Dockerfile](Dockerfile) | Commands run on first provision (autopull) |
 | `INITIAL_DEPLOY_COMMAND_SEPARATOR` | `;` | Token separator |
-| `LARAVEL_*` | — | Injected into the application `.env` (prefix stripped) |
+| `LARAVEL_*` | — | Exported into the application environment (prefix stripped) |
 | `APPLICATION_PATH`, `APPLICATION_UID`, `APPLICATION_GID`, `WEB_DOCUMENT_ROOT`, … | | Inherited from the [webdevops base image](https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-nginx.html#environment-variables) |
 
 ## Extending
