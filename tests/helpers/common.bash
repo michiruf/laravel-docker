@@ -7,6 +7,11 @@ compose() {
     docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" "$@"
 }
 
+# Count how often the app service log contains a pattern so far.
+log_count() {
+    compose logs app 2>&1 | grep -c "$1" || true
+}
+
 # Wait until the app service log contains a pattern at least $3 times (default 1).
 # Dumps the full log and fails on timeout.
 wait_for_log() {
@@ -46,12 +51,33 @@ app_key() {
     compose exec -T app sh -c 'grep "^APP_KEY=" "$APPLICATION_PATH/.env"'
 }
 
-# The .env must have been synthesized from the container environment.
-assert_env_synthesized() {
+# The application must be configured from the container environment. The
+# LARAVEL_* variables are handed over as environment variables, so this asserts
+# the value the application resolves - and that the .env holds a different one.
+assert_configured_from_environment() {
+    # Guard the assertions below: they only prove anything as long as the .env
+    # itself carries different values. The skeleton ships 'DB_CONNECTION=sqlite'
+    # and keeps DB_HOST commented out, so a resolved 'mysql' can only come from
+    # the container environment. If upstream ever changes that, fail here
+    # instead of silently asserting nothing.
+    run compose exec -T app sh -c 'grep "^DB_CONNECTION=" "$APPLICATION_PATH/.env"'
+    [ "$status" -eq 0 ]
+    [[ "$output" != *mysql* ]]
+
+    run compose exec -T app sh -c 'grep "^DB_HOST=" "$APPLICATION_PATH/.env" || true'
+    [[ "$output" != *mysql* ]]
+
+    run compose exec -T app /opt/docker/bin/laravel-artisan.sh config:show database.default
+    [ "$status" -eq 0 ]
+    [[ "$output" == *mysql* ]]
+
+    run compose exec -T app /opt/docker/bin/laravel-artisan.sh config:show database.connections.mysql.host
+    [ "$status" -eq 0 ]
+    [[ "$output" == *mysql* ]]
+
+    # the generated APP_KEY does still live in the .env
     run compose exec -T app sh -c 'cat "$APPLICATION_PATH/.env"'
     [ "$status" -eq 0 ]
-    [[ "$output" == *"DB_HOST=mysql"* ]]
-    [[ "$output" == *"DB_CONNECTION=mysql"* ]]
     [[ "$output" == *"APP_KEY=base64:"* ]]
 }
 

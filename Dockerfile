@@ -46,7 +46,6 @@ ENV DEPLOY_COMMAND_SEPARATOR=; \
   artisan:down ; \
   git:update ; \
   composer:install --no-progress ; \
-  env:update ; \
   artisan:storage:link ; \
   artisan:optimize ; \
   artisan:migrate --force ; \
@@ -58,7 +57,6 @@ ENV DEPLOY_COMMAND_SEPARATOR=; \
 ENV INITIAL_DEPLOY_COMMAND_SEPARATOR=; \
     INITIAL_DEPLOY_COMMANDS="\
   composer:install --no-progress ; \
-  env:update ; \
   artisan:key:generate --force ; \
   permissions:fix"
 
@@ -70,7 +68,6 @@ COPY rootfs/baked/ /
 # Set the default deploy commands and their separator
 ENV DEPLOY_COMMAND_SEPARATOR=; \
     DEPLOY_COMMANDS="\
-  env:update ; \
   artisan:storage:link ; \
   artisan:optimize ; \
   artisan:migrate --force ; \

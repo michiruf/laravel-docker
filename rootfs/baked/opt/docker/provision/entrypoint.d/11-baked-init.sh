@@ -3,14 +3,8 @@
 # - first run (empty application path): moves /app-src into place and generates the APP_KEY
 # - every run: executes DEPLOY_COMMANDS
 # shellcheck shell=sh
-# shellcheck disable=SC1091 # /etc/environment only exists inside the container
 set -e
-. /opt/docker/etc/print.sh
-
-# Load environment file
-# 'set -a' ensures they are treated as exported
-# See https://superuser.com/a/1240860
-set -a; . /etc/environment; set +a
+. /opt/docker/etc/laravel-env.sh
 
 cd "$APPLICATION_PATH"
 
@@ -23,7 +17,7 @@ if [ -z "$(ls -A "$APPLICATION_PATH")" ]; then
 
     # The .env must exist before key:generate can write the APP_KEY into it
     p '> generate env file' 'cyan'
-    /opt/docker/bin/run-command.sh env:update
+    . /opt/docker/etc/laravel-env.sh
 
     p '> generate app key' 'cyan'
     /opt/docker/bin/run-command.sh artisan:key:generate --force
@@ -31,9 +25,17 @@ fi
 
 p '=> performing deploy now' 'purple'
 
-IFS=$DEPLOY_COMMAND_SEPARATOR; for command in $DEPLOY_COMMANDS; do
-    p "> $command" 'cyan'
-    /opt/docker/bin/run-command.sh "$command"
-done
+# Split the command list in a subshell: the webdevops entrypoint sources this
+# file rather than executing it, so an IFS left at the separator would leak into
+# the entrypoint scripts running after us. The 20-php* ones iterate over
+# unquoted $(envListVars ...) output, which needs the default IFS to split the
+# one-name-per-line listing, and abort container startup otherwise.
+(
+    IFS=$DEPLOY_COMMAND_SEPARATOR
+    for command in $DEPLOY_COMMANDS; do
+        p "> $command" 'cyan'
+        /opt/docker/bin/run-command.sh "$command"
+    done
+)
 
 p '=> deploy completed' 'purple'

@@ -1,25 +1,59 @@
 #!/usr/bin/env sh
 # shellcheck shell=sh
 set -e
-. /opt/docker/etc/print.sh
+. /opt/docker/etc/print.sh # we must not load the current env to avoid any conflicts
 
-# Append env vars matching a prefix to /etc/environment as properly
-# single-quoted assignments, so values containing spaces or shell
-# metacharacters survive being sourced by the other scripts.
-append_env() {
-    # sed only emits valid variable names and, unlike grep, exits 0 when
-    # nothing matches — this script is sourced by the webdevops entrypoint
-    # under 'set -o pipefail -o errexit', where a no-match grep would kill
-    # the whole container startup
-    printenv | sed -n "s/^\($1[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r name; do
-        value=$(printenv "$name") || continue
-        escaped=$(printf '%s' "$value" | sed "s/'/'\\\\''/g")
-        printf "%s='%s'\n" "$name" "$escaped" >> /etc/environment
+# Only names that are valid shell identifiers can be exported, so anything
+# else (empty names, leading digits) is skipped instead of written out.
+is_valid_name() {
+    case $1 in
+        ''|[!A-Za-z_]*) return 1 ;;
+        *[!A-Za-z0-9_]*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+# Names the container itself runs on. Replacing one of these breaks every
+# command that runs afterwards, so they are refused rather than carried over.
+is_reserved_name() {
+    case $1 in
+        PATH|HOME|USER|LOGNAME|SHELL|PWD|OLDPWD|IFS|TERM|HOSTNAME|LANG|LC_*|LD_*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Hand env vars matching a prefix to /etc/environment, so it can get read again by the
+# /opt/docker/etc/laravel-env.sh script, which is sourced everywhere.
+# The reason behind that is, that we create an alias for LARAVEL_ prefixed variables without
+# that alias.
+prepare_stripped_env() {
+    prefix="$1"
+
+    # sed only emits valid variable names, skipping e.g. continuation lines
+    # of multiline values that happen to match the prefix
+    printenv | sed -n "s/^\(${prefix}[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r original_var_name; do
+        var_name="${original_var_name#"$prefix"}"
+        var_value=$(printenv "$original_var_name") || continue
+
+        if ! is_valid_name "$var_name"; then
+            p "  refusing '$original_var_name', '$var_name' is not a valid variable name" 'yellow'
+            continue
+        fi
+
+        if is_reserved_name "$var_name"; then
+            p "  refusing '$original_var_name', '$var_name' is reserved by the container" 'yellow'
+            continue
+        fi
+
+        # Escape sed replacement metacharacters (\ & and the | delimiter), otherwise
+        # values like generated passwords corrupt the .env or abort the substitution
+        escaped_var_value=$(printf '%s' "$var_value" | sed "s/'/'\\\\''/g")
+        printf "%s='%s'\n" "$var_name" "$escaped_var_value" >> /etc/environment
     done
 }
 
-p "> preparing general docker environment" 'cyan'
-append_env 'APPLICATION_'
+p "> preparing and stripping docker environment for laravel (env with prefix 'LARAVEL_')" 'cyan'
+prepare_stripped_env 'LARAVEL_'
 
-p "> preparing docker environment for laravel (env with prefix 'LARAVEL_')" 'cyan'
-append_env 'LARAVEL_'
+# Source to export the envs regularly
+. /opt/docker/etc/laravel-env.sh

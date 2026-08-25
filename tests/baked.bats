@@ -62,8 +62,8 @@ teardown_file() {
     wait_for_log "package 'laravel/pulse' is not installed, idling" 60
 }
 
-@test "baked: provisioning synthesized .env from container environment" {
-    assert_env_synthesized
+@test "baked: application is configured from the container environment" {
+    assert_configured_from_environment
 }
 
 @test "baked: restart re-provisions idempotently, APP_KEY is preserved" {

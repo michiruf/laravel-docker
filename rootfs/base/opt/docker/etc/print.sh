@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
+# shellcheck shell=sh
+set -e
 
-RESET='\033[0m'
-
+# Debug function
 p() {
     case $2 in
         red)    color='\033[0;31m' ;;
@@ -11,5 +12,5 @@ p() {
         *)      color='' ;;
     esac
 
-    printf '%b\n' "${color}${1}${RESET}"
+    printf '%b\n' "${color}${1}\033[0m"
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# shellcheck shell=sh
 # Provision git ssh credentials for private repositories. Sourced by
 # autopull.sh before any git network operation, so the exported
 # GIT_SSH_COMMAND applies to clone and fetch.

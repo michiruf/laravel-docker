@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
+# shellcheck shell=sh
+set -e
+. /opt/docker/etc/laravel-env.sh
 # Command dispatcher: executes a single command token from the DSL
 # (deploy steps, detect commands). See the README for the full reference.
-set -e
-. /opt/docker/etc/print.sh
 
 # Trim surrounding whitespace (pure parameter expansion; unlike xargs this
 # does not mangle quotes or backslashes)
@@ -24,9 +25,6 @@ case $command in
     git:update)
         current_branch=$(git symbolic-ref --short HEAD)
         git reset --hard "origin/$current_branch"
-        ;;
-    env:update)
-        /opt/docker/bin/laravel-env.sh
         ;;
     permissions:fix)
         chown -R "$APPLICATION_UID":"$APPLICATION_GID" .
