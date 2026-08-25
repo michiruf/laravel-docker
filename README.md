@@ -85,7 +85,7 @@ instead. The built-in `git:detect` fetches and compares HEAD with the remote.
 
 #### Private repositories
 
-To authenticate agains a private repository, there are two ways:
+To authenticate against a private repository, there are two ways:
 
 **HTTPS token in the URL:**
 
