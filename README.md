@@ -64,11 +64,11 @@ mysql and redis.
 
 Every variant is published under three kinds of tags:
 
-| Tag                             | Points at                                                                                           |
-|---------------------------------|-----------------------------------------------------------------------------------------------------|
-| `<variant>-latest`              | The newest release.                                                                                 |
-| `<variant>-1`, `-1.2`, `-1.2.3` | A release, pinned as loosely or as tightly as wanted.                                               |
-| `<variant>-nightly`             | A test build. Moves with every push on `main`, can also be triggered on GitHub. Not for production. |
+| Tag                             | Points at                                                                                                     |
+|---------------------------------|---------------------------------------------------------------------------------------------------------------|
+| `<variant>-latest`              | The newest release.                                                                                           |
+| `<variant>-1`, `-1.2`, `-1.2.3` | A release, pinned as loosely or as tightly as wanted.                                                         |
+| `<variant>-nightly`             | A test build. Moves after each successful run on `main`, can also be triggered on GitHub. Not for production. |
 
 The nightly tag is a single moving tag - there is always exactly one nightly
 image per variant, and it is only published after the test suite passed.
