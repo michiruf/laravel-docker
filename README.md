@@ -40,6 +40,10 @@ TODO
 The repository is cloned on first start (branch `BRANCH`, or the remote default
 branch if empty) and redeployed whenever upstream moves.
 
+A failed deploy is retried on the next cron tick until it completes. The pending
+phase is recorded in `.git/autopull-state` on the application volume, so a deploy
+interrupted by a crash or a container recreate is resumed as well.
+
 #### Update detection (`DETECT_COMMAND`)
 
 Every cron tick, autopull runs `DETECT_COMMAND` (any DSL token, default
@@ -106,15 +110,16 @@ into place, an `APP_KEY` is generated and the deploy commands run.
 
 ## Provisioning
 
-Both variants run the same pipeline:
+Every deploy — triggered by a first start or a new commit — runs
+`DEPLOY_COMMANDS` and logs `=> deploy completed` when it is through, a marker
+usable for monitoring and tests. Ownership is normalized to
+`APPLICATION_UID:APPLICATION_GID` by the `permissions:fix` command both default
+lists end with; autopull additionally chowns the application path after every
+deploy.
 
-```
-trigger (first start / new commit)
-  → INITIAL_DEPLOY_COMMANDS   (autopull first provision only)
-  → DEPLOY_COMMANDS           (every deploy)
-  → ownership normalization   (APPLICATION_UID:APPLICATION_GID)
-  → "=> deploy completed"     (log marker, usable for monitoring/tests)
-```
+The first start differs per variant: autopull runs `INITIAL_DEPLOY_COMMANDS`
+before the first deploy, baked moves `/app-src` into place and generates the
+`APP_KEY` instead.
 
 ### Deploy command DSL
 
@@ -124,7 +129,7 @@ split by `DEPLOY_COMMAND_SEPARATOR` (default `;`):
 | Token             | Action                                                                                                                     |
 |-------------------|----------------------------------------------------------------------------------------------------------------------------|
 | `-<anything>`     | Skipped. Disable a single default without redefining the whole list.                                                       |
-| `git:detect`      | `git fetch`, then exit 0 when upstream moved past HEAD (deploy needed), 1 otherwise. Default `DETECT_COMMAND`.             |
+| `git:detect`      | `git fetch`, then exit 0 when upstream moved past HEAD (deploy needed), 1 otherwise. Default `DETECT_COMMAND` (autopull).             |
 | `git:update`      | `git reset --hard origin/<current branch>`                                                                                 |
 | `composer:<args>` | Run composer, e.g. `composer:install --no-progress`                                                                        |
 | `artisan:<args>`  | Run artisan (guarded: fails when the app is not provisioned yet)                                                           |
@@ -132,10 +137,8 @@ split by `DEPLOY_COMMAND_SEPARATOR` (default `;`):
 | `permissions:fix` | `chown -R $APPLICATION_UID:$APPLICATION_GID .`                                                                             |
 | anything else     | Executed as raw shell (escape hatch)                                                                                       |
 
-A failing command aborts the deploy; the run is retried on the next cron tick
-until a deploy completes. Autopull records the pending phase in
-`.git/autopull-state` on the application volume, so a deploy interrupted by a
-crash or a container recreate is resumed as well. Tolerate an expected failure
+A failing command aborts the deploy — autopull retries it on the next cron tick
+(see below), baked fails the container start. Tolerate an expected failure
 explicitly with `artisan?:` or a `<command> || true` shell suffix.
 
 The defaults for all three variants are defined in the [Dockerfile](Dockerfile).
@@ -175,19 +178,24 @@ A plain `laravel/laravel` skeleton therefore runs with zero configuration.
 
 ## Environment reference
 
-| Variable                                                                         | Default                      | Purpose                                                                                                                                                      |
-|----------------------------------------------------------------------------------|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `GIT_URL`                                                                        | — (required, autopull)       | Repository to deploy (https or ssh)                                                                                                                          |
-| `BRANCH`                                                                         | empty (autopull)             | Branch to deploy; empty uses the remote default branch                                                                                                       |
-| `GIT_SSH_KEY`                                                                    | empty (autopull)             | Private deploy key for ssh URLs, raw PEM or base64                                                                                                           |
-| `GIT_SSH_KNOWN_HOSTS`                                                            | empty (autopull)             | Pinned host key line(s); empty trusts on first use                                                                                                           |
-| `DETECT_COMMAND`                                                                 | `git:detect`                 | DSL token deciding whether to deploy (exit 0 = deploy)                                                                                                       |
-| `DEPLOY_COMMANDS`                                                                | see [Dockerfile](Dockerfile) | Commands run on every deploy                                                                                                                                 |
-| `DEPLOY_COMMAND_SEPARATOR`                                                       | `;`                          | Token separator                                                                                                                                              |
-| `INITIAL_DEPLOY_COMMANDS`                                                        | see [Dockerfile](Dockerfile) | Commands run on first provision (autopull)                                                                                                                   |
-| `INITIAL_DEPLOY_COMMAND_SEPARATOR`                                               | `;`                          | Token separator                                                                                                                                              |
-| `LARAVEL_*`                                                                      | —                            | Exported into the application environment (prefix stripped)                                                                                                  |
-| `APPLICATION_PATH`, `APPLICATION_UID`, `APPLICATION_GID`, `WEB_DOCUMENT_ROOT`, … |                              | Inherited from the [webdevops base image](https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-nginx.html#environment-variables) |
+Everything the [webdevops base image](https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-nginx.html#environment-variables)
+offers is inherited — `APPLICATION_PATH`, `APPLICATION_UID`, `APPLICATION_GID`,
+`WEB_DOCUMENT_ROOT` and the rest. On top of that, these images add:
+
+| Variable                           | Default                          | Purpose                                                     |
+|------------------------------------|----------------------------------|-------------------------------------------------------------|
+| `GIT_URL`                          | — (required, autopull)           | Repository to deploy (https or ssh)                         |
+| `BRANCH`                           | empty (autopull)                 | Branch to deploy; empty uses the remote default branch      |
+| `GIT_SSH_KEY`                      | empty (autopull)                 | Private deploy key for ssh URLs, raw PEM or base64          |
+| `GIT_SSH_KNOWN_HOSTS`              | empty (autopull)                 | Pinned host key line(s); empty trusts on first use          |
+| `DETECT_COMMAND`                   | `git:detect`                     | DSL token deciding whether to deploy (exit 0 = deploy)      |
+| `DEPLOY_COMMANDS`                  | see [Dockerfile](Dockerfile)     | Commands run on every deploy                                |
+| `DEPLOY_COMMAND_SEPARATOR`         | `;`                              | Token separator                                             |
+| `INITIAL_DEPLOY_COMMANDS`          | see [Dockerfile](Dockerfile)     | Commands run on first provision (autopull)                  |
+| `INITIAL_DEPLOY_COMMAND_SEPARATOR` | `;`                              | Token separator                                             |
+| `LARAVEL_*`                        | —                                | Exported into the application environment (prefix stripped) |
+| `APPLICATION_ENV_FILE`             | `$APPLICATION_PATH/.env`         | Application `.env` path                                     |
+| `APPLICATION_ENV_EXAMPLE_FILE`     | `$APPLICATION_PATH/.env.example` | Template the `.env` is created from when missing            |
 
 ## Extending
 
