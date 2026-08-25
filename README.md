@@ -80,8 +80,10 @@ split by `DEPLOY_COMMAND_SEPARATOR` (default `;`):
 | anything else | Executed as raw shell (escape hatch) |
 
 A failing command aborts the deploy; the run is retried on the next cron tick
-until a deploy completes. Tolerate an expected failure explicitly with
-`artisan?:` or a `<command> || true` shell suffix.
+until a deploy completes. Autopull records the pending phase in
+`.git/autopull-state` on the application volume, so a deploy interrupted by a
+crash or a container recreate is resumed as well. Tolerate an expected failure
+explicitly with `artisan?:` or a `<command> || true` shell suffix.
 
 ### Update detection (`DETECT_COMMAND`)
 

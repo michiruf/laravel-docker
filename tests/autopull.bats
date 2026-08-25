@@ -71,6 +71,21 @@ teardown_file() {
     assert_http_ok "http://localhost:$HOST_PORT"
 }
 
+@test "autopull: an unfinished deploy is resumed without an upstream change" {
+    # A deploy that dies mid-run (failing command, crash, container recreate)
+    # leaves the state file behind. git:detect cannot notice that on its own
+    # once git:update already moved HEAD onto upstream.
+    compose exec -T app sh -c 'echo deploy > "$APPLICATION_PATH/.git/autopull-state"'
+    wait_for_log '=> resuming previously unfinished deploy' 240
+    wait_for_log '=> deploy completed' 240 3
+
+    # a completed deploy clears the state again
+    run compose exec -T app sh -c 'test -e "$APPLICATION_PATH/.git/autopull-state"'
+    [ "$status" -ne 0 ]
+
+    assert_http_ok "http://localhost:$HOST_PORT"
+}
+
 @test "autopull: deploy command DSL semantics" {
     # '-' prefix skips
     run compose exec -T app /opt/docker/bin/run-command.sh -artisan:migrate
