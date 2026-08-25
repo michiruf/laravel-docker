@@ -48,8 +48,20 @@ app_key() {
 
 # The application must be configured from the container environment. The
 # LARAVEL_* variables are handed over as environment variables, so this asserts
-# the value the application resolves - the .env carries no settings of its own.
+# the value the application resolves - and that the .env holds a different one.
 assert_configured_from_environment() {
+    # Guard the assertions below: they only prove anything as long as the .env
+    # itself carries different values. The skeleton ships 'DB_CONNECTION=sqlite'
+    # and keeps DB_HOST commented out, so a resolved 'mysql' can only come from
+    # the container environment. If upstream ever changes that, fail here
+    # instead of silently asserting nothing.
+    run compose exec -T app sh -c 'grep "^DB_CONNECTION=" "$APPLICATION_PATH/.env"'
+    [ "$status" -eq 0 ]
+    [[ "$output" != *mysql* ]]
+
+    run compose exec -T app sh -c 'grep "^DB_HOST=" "$APPLICATION_PATH/.env" || true'
+    [[ "$output" != *mysql* ]]
+
     run compose exec -T app /opt/docker/bin/laravel-artisan.sh config:show database.default
     [ "$status" -eq 0 ]
     [[ "$output" == *mysql* ]]
