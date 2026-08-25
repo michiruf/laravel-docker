@@ -3,6 +3,16 @@
 set -e
 . /opt/docker/etc/print.sh # we must not load the current env to avoid any conflicts
 
+# Only names that are valid shell identifiers can be exported, so anything
+# else (empty names, leading digits) is skipped instead of written out.
+is_valid_name() {
+    case $1 in
+        ''|[!A-Za-z_]*) return 1 ;;
+        *[!A-Za-z0-9_]*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
 # Names the container itself runs on. Replacing one of these breaks every
 # command that runs afterwards, so they are refused rather than carried over.
 is_reserved_name() {
@@ -24,6 +34,11 @@ prepare_stripped_env() {
     printenv | sed -n "s/^\(${prefix}[A-Za-z0-9_]*\)=.*/\1/p" | sort -u | while IFS= read -r original_var_name; do
         var_name="${original_var_name#"$prefix"}"
         var_value=$(printenv "$original_var_name") || continue
+
+        if ! is_valid_name "$var_name"; then
+            p "  refusing '$original_var_name', '$var_name' is not a valid variable name" 'yellow'
+            continue
+        fi
 
         if is_reserved_name "$var_name"; then
             p "  refusing '$original_var_name', '$var_name' is reserved by the container" 'yellow'
