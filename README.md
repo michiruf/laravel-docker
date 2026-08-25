@@ -60,6 +60,19 @@ mysql and redis.
 | `ghcr.io/michiruf/laravel-docker:baked-latest`    | Starter image: the application is copied in at build time, provisioning runs on first container start. |
 | `ghcr.io/michiruf/laravel-docker:base-latest`     | Provisioning engine only, no deploy trigger. Base for a custom variant.                                |
 
+### Tags
+
+Every variant is published under three kinds of tags:
+
+| Tag                             | Points at                                                            |
+|---------------------------------|----------------------------------------------------------------------|
+| `<variant>-latest`              | The newest release.                                                  |
+| `<variant>-1`, `-1.2`, `-1.2.3` | A release, pinned as loosely or as tightly as wanted.                |
+| `<variant>-nightly`             | The current state of `main`. Moves with every push, use for testing. |
+
+The nightly tag is a single moving tag - there is always exactly one nightly
+image per variant, and it is only published after the test suite passed.
+
 ### Autopull
 
 The repository is cloned on the first start. It uses the branch from `BRANCH`,
