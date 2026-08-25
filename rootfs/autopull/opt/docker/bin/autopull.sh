@@ -39,9 +39,13 @@ state_file=.git/autopull-state
 
 # Keep the variable and the file in sync - the file is what survives a crash,
 # the variable is what the rest of this run branches on.
+# The file is written via a temporary file and renamed into place, so a crash
+# mid-write leaves the previous state intact instead of a truncated file that
+# would read as 'nothing pending'.
 set_state() {
     state=$1
-    echo "$1" > "$state_file"
+    echo "$1" > "$state_file.tmp"
+    mv "$state_file.tmp" "$state_file"
 }
 
 # Check if required GIT_URL exists
