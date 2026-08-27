@@ -8,6 +8,25 @@ set -e
 # See https://superuser.com/a/1240860
 set -a; . /etc/environment; set +a
 
+# A subdirectory deploy (autopull with GIT_SUBDIRECTORY) clones the repository
+# into the application volume and runs the application from a directory inside
+# it, so both the application path and the document root move down there while
+# the checkout itself stays reachable as GIT_REPOSITORY_PATH.
+# Only the autopull stage declares the variable, and this file is also sourced
+# by entrypoints running with 'set -u', hence the spelled out default.
+if [ -n "${GIT_SUBDIRECTORY:-}" ]; then
+  case $APPLICATION_PATH in
+    # already derived: this file is sourced again in every child process, and
+    # without the check the subdirectory would be appended once per level
+    */"$GIT_SUBDIRECTORY") ;;
+    *)
+      export GIT_REPOSITORY_PATH="$APPLICATION_PATH"
+      export APPLICATION_PATH="$APPLICATION_PATH/$GIT_SUBDIRECTORY"
+      export WEB_DOCUMENT_ROOT="$APPLICATION_PATH/public"
+      ;;
+  esac
+fi
+
 # Copy .env.example to .env if nonexistent
 if [ -d "$APPLICATION_PATH" ]; then
   laravel_env_file=${APPLICATION_ENV_FILE:-"$APPLICATION_PATH/.env"}

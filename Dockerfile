@@ -2,7 +2,8 @@
 #
 # Stages:
 #   base     - nginx + php-fpm + supervisor with the provisioning engine, no deploy trigger
-#   autopull - base + cron-driven git deployment (set GIT_URL, optionally BRANCH)
+#   autopull - base + cron-driven git deployment (set GIT_URL, optionally BRANCH
+#              and GIT_SUBDIRECTORY)
 #   baked    - base + first-start provisioning for applications copied to /app-src at build time
 #
 # Build: docker build --target <base|autopull|baked> .
@@ -31,6 +32,11 @@ RUN printf '*\t*\t*\t*\t*\t/opt/docker/bin/autopull.sh\n' >> /etc/crontabs/root
 
 # Git branch to deploy; empty means the remote default branch
 ENV BRANCH=
+
+# Subdirectory of the repository holding the application (monorepos); empty
+# deploys the repository root. Set, the checkout is restricted to it and the
+# application path moves into it (see laravel-env.sh)
+ENV GIT_SUBDIRECTORY=
 
 # Private-repository ssh credentials (see git-credentials.sh):
 # private deploy key (raw PEM or base64) and optional pinned host key(s)

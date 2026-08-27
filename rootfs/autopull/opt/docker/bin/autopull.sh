@@ -35,7 +35,10 @@ run_commands() (
 # volume) rather than to the container: a deployment provisioned by an earlier
 # image has no state file and is correctly treated as up to date, and a
 # recreated container does not lose a pending deploy.
-state_file=.git/autopull-state
+# With GIT_SUBDIRECTORY the application path points into the checkout, so the
+# clone (and with it the state file) belongs to GIT_REPOSITORY_PATH.
+repository_path=${GIT_REPOSITORY_PATH:-$APPLICATION_PATH}
+state_file="$repository_path/.git/autopull-state"
 
 # Keep the variable and the file in sync - the file is what survives a crash,
 # the variable is what the rest of this run branches on.
@@ -58,19 +61,19 @@ fi
 # is unset); sourced so the exported GIT_SSH_COMMAND applies to clone/fetch
 . /opt/docker/bin/git-credentials.sh
 
-cd "$APPLICATION_PATH"
+cd "$repository_path"
 
 # Flag the directory to be usable by both, root and the application user.
 # This must happen on every run (not only on the initial clone): the config
 # lives in the container filesystem while the repository lives on a volume,
 # so a recreated container would otherwise fail all git commands with
 # 'detected dubious ownership'.
-git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$APPLICATION_PATH" \
-    || git config --global --add safe.directory "$APPLICATION_PATH"
+git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$repository_path" \
+    || git config --global --add safe.directory "$repository_path"
 
 # Clone if there is no .git directory yet
 if [ ! -d ".git" ]; then
-    p "=> initial project setup, because '$APPLICATION_PATH/.git' does not exist" 'purple'
+    p "=> initial project setup, because '$repository_path/.git' does not exist" 'purple'
 
     if [ -n "$BRANCH" ]; then
         p "> clone repository with branch '$BRANCH'" 'cyan'
@@ -79,10 +82,23 @@ if [ ! -d ".git" ]; then
         p '> clone repository (remote default branch)' 'cyan'
         git clone "$GIT_URL" .
     fi
+
+    # Everything outside the deployed subdirectory is of no use to the
+    # application. Cone mode keeps the files at the top level of the
+    # repository, so shared root level tooling stays available.
+    if [ -n "$GIT_SUBDIRECTORY" ]; then
+        p "> restrict the checkout to '$GIT_SUBDIRECTORY'" 'cyan'
+        git sparse-checkout set --cone "$GIT_SUBDIRECTORY"
+    fi
     echo 'Done'
 
     set_state initial
 fi
+
+# The detect and deploy commands belong to the application, not to the
+# checkout: composer and artisan need the application directory, and git
+# resolves the repository from it just as well.
+cd "$APPLICATION_PATH"
 
 # Reload the state after a possible clone. An absent (or unreadable, or
 # truncated) file means 'nothing pending' and falls through to the detection
@@ -124,7 +140,7 @@ if [ "$state" = deploy ]; then
     rm -f "$state_file"
 
     p '> adjust rights' 'cyan'
-    chown -R "$APPLICATION_UID":"$APPLICATION_GID" .
+    chown -R "$APPLICATION_UID":"$APPLICATION_GID" "$repository_path"
 
     p '=> deploy completed' 'purple'
 fi
