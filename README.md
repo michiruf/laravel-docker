@@ -83,6 +83,31 @@ A failed deploy is retried every minute until it works. The open step is stored
 in `.git/autopull-state` on the application volume. So a deploy that was stopped
 by a crash or a new container is picked up again.
 
+#### Monorepos (`GIT_SUBDIRECTORY`)
+
+If the application does not live at the repository root, `GIT_SUBDIRECTORY`
+names the directory to deploy:
+
+```sh
+GIT_URL=https://github.com/you/monorepo.git
+GIT_SUBDIRECTORY=apps/api
+```
+
+The repository is still cloned into the application volume, but the checkout is
+reduced to that directory plus the files at the top level of the repository (a
+[sparse checkout](https://git-scm.com/docs/git-sparse-checkout) in cone mode),
+so shared root level configuration stays available. The application path and
+the document root move into the subdirectory:
+
+| Path                                 | Content                         |
+|--------------------------------------|---------------------------------|
+| `/app` (`GIT_REPOSITORY_PATH`)       | The checkout with the `.git`    |
+| `/app/apps/api` (`APPLICATION_PATH`) | The deployed application        |
+| `/app/apps/api/public`               | Document root served by nginx   |
+
+The deploy commands run in the application directory, so a custom 
+`DETECT_COMMAND` using a pathspec has to be written relative to it.
+
 #### Update detection (`DETECT_COMMAND`)
 
 Once a minute, autopull runs `DETECT_COMMAND` (any command token, default
@@ -197,6 +222,7 @@ are configurable, for example `APPLICATION_PATH`, `APPLICATION_UID`,
 |------------------------------------|----------------------------------|-------------------------------------------------------|
 | `GIT_URL`                          | — (required, autopull)           | Repository to deploy (https or ssh)                   |
 | `BRANCH`                           | empty (autopull)                 | Branch to deploy, empty uses the default branch       |
+| `GIT_SUBDIRECTORY`                 | empty (autopull)                 | Subdirectory holding the application (monorepos)      |
 | `GIT_SSH_KEY`                      | empty (autopull)                 | Private deploy key for ssh URLs, raw PEM or base64    |
 | `GIT_SSH_KNOWN_HOSTS`              | empty (autopull)                 | Pinned host key line(s), empty trusts on first use    |
 | `DETECT_COMMAND`                   | `git:detect`                     | Command that decides about a deploy (exit 0 = deploy) |

@@ -11,6 +11,8 @@ services:
     environment:
       - GIT_URL=${GIT_URL:?GIT_URL is required}
       - BRANCH=${BRANCH:-}
+      # Monorepos: subdirectory holding the application, empty deploys the repository root
+      - GIT_SUBDIRECTORY=${GIT_SUBDIRECTORY:-}
       # Private repositories: ssh deploy key (raw PEM or base64) and optional
       # pinned host key(s); empty means trust-on-first-use. HTTPS tokens go
       # directly into GIT_URL (https://user:token@host/repo.git) instead.
