@@ -22,12 +22,10 @@ if [ -f "$BATS_FILE_TMPDIR/scenario" ] && [ "$(cat "$BATS_FILE_TMPDIR/scenario")
     export GIT_URL="$MONOREPO_PATH_IN_CONTAINER"
     export GIT_SUBDIRECTORY=apps/api
     export BRANCH=main
-    export APP_PATH=/app/apps/api
 else
     export GIT_URL=https://github.com/laravel/laravel.git
     export GIT_SUBDIRECTORY=
     export BRANCH=
-    export APP_PATH=/app
 fi
 
 export HOST_PORT=8080
@@ -154,7 +152,6 @@ teardown_file() {
     export GIT_URL="$MONOREPO_PATH_IN_CONTAINER"
     export GIT_SUBDIRECTORY=apps/api
     export BRANCH=main
-    export APP_PATH=/app/apps/api
 
     # The fixture is copied into the container before it runs, so the first
     # cron tick already finds the repository the deploy pulls from. 'cp' keeps
@@ -220,6 +217,6 @@ teardown_file() {
         git -C /srv/probe push -q"
 
     wait_for_log '=> deploy completed' 240 "$((completed_before + 1))"
-    compose exec -T app grep -q 'deployed change' "$APP_PATH/public/probe.txt"
+    compose exec -T app grep -q 'deployed change' /app/apps/api/public/probe.txt
     assert_http_ok "http://localhost:$HOST_PORT"
 }

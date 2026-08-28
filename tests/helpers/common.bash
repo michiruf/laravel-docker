@@ -7,9 +7,12 @@ compose() {
     docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" "$@"
 }
 
-# Application directory inside the container. A plain 'docker exec' only sees
-# the image default, so suites deploying a GIT_SUBDIRECTORY override this.
-: "${APP_PATH:=/app}"
+# Application directory inside the container, asked of the container itself: a
+# plain 'docker exec' only sees the image default, which a GIT_SUBDIRECTORY
+# deploy moves.
+app_path() {
+    compose exec -T app sh -c '. /opt/docker/etc/laravel-env.sh; printf %s "$APPLICATION_PATH"'
+}
 
 # Count how often the app service log contains a pattern so far.
 log_count() {
@@ -52,7 +55,7 @@ assert_http_ok() {
 
 # Print the APP_KEY line from the application's .env.
 app_key() {
-    compose exec -T app grep '^APP_KEY=' "$APP_PATH/.env"
+    compose exec -T app grep '^APP_KEY=' "$(app_path)/.env"
 }
 
 # The application must be configured from the container environment. The
@@ -64,11 +67,11 @@ assert_configured_from_environment() {
     # and keeps DB_HOST commented out, so a resolved 'mysql' can only come from
     # the container environment. If upstream ever changes that, fail here
     # instead of silently asserting nothing.
-    run compose exec -T app grep '^DB_CONNECTION=' "$APP_PATH/.env"
+    run compose exec -T app grep '^DB_CONNECTION=' "$(app_path)/.env"
     [ "$status" -eq 0 ]
     [[ "$output" != *mysql* ]]
 
-    run compose exec -T app sh -c "grep '^DB_HOST=' '$APP_PATH/.env' || true"
+    run compose exec -T app sh -c "grep '^DB_HOST=' '$(app_path)/.env' || true"
     [[ "$output" != *mysql* ]]
 
     run compose exec -T app /opt/docker/bin/laravel-artisan.sh config:show database.default
@@ -80,7 +83,7 @@ assert_configured_from_environment() {
     [[ "$output" == *mysql* ]]
 
     # the generated APP_KEY does still live in the .env
-    run compose exec -T app cat "$APP_PATH/.env"
+    run compose exec -T app cat "$(app_path)/.env"
     [ "$status" -eq 0 ]
     [[ "$output" == *"APP_KEY=base64:"* ]]
 }
@@ -88,7 +91,7 @@ assert_configured_from_environment() {
 # The whole application tree must be owned by the application user, not root.
 assert_no_root_owned_files() {
     local owners
-    owners=$(compose exec -T app sh -c "find '$APP_PATH' -exec ls -ld {} + | awk '{print \$3}' | sort -u")
+    owners=$(compose exec -T app sh -c "find '$(app_path)' -exec ls -ld {} + | awk '{print \$3}' | sort -u")
     echo "owners found: $owners"
     [[ "$owners" != *root* ]]
 }
