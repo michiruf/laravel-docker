@@ -90,7 +90,7 @@ names the directory to deploy:
 
 ```sh
 GIT_URL=https://github.com/you/monorepo.git
-GIT_SUBDIRECTORY=apps/api
+GIT_SUBDIRECTORY=my-subdirectory/api
 ```
 
 The repository is still cloned into the application volume, but the checkout is
@@ -99,14 +99,15 @@ reduced to that directory plus the files at the top level of the repository (a
 so shared root level configuration stays available. The application path and
 the document root move into the subdirectory:
 
-| Path                                 | Content                         |
-|--------------------------------------|---------------------------------|
-| `/app` (`GIT_REPOSITORY_PATH`)       | The checkout with the `.git`    |
-| `/app/apps/api` (`APPLICATION_PATH`) | The deployed application        |
-| `/app/apps/api/public`               | Document root served by nginx   |
+| Path                                            | Content                       |
+|-------------------------------------------------|-------------------------------|
+| `/app` (`GIT_REPOSITORY_PATH`)                  | The checkout with the `.git`  |
+| `/app/my-subdirectory/api` (`APPLICATION_PATH`) | The deployed application      |
+| `/app/my-subdirectory/api/public`               | Document root served by nginx |
 
-The deploy commands run in the application directory, so a custom 
+The deploy commands run in the application directory, so a custom
 `DETECT_COMMAND` using a pathspec has to be written relative to it.
+In combination with a custom detect command, also adjust the paths.
 
 #### Update detection (`DETECT_COMMAND`)
 
@@ -115,7 +116,7 @@ Once a minute, autopull runs `DETECT_COMMAND` (any command token, default
 as an update, for example only changes in one folder of a monorepo:
 
 ```yaml
-DETECT_COMMAND: git fetch && ! git diff --quiet HEAD @{u} -- apps/api
+DETECT_COMMAND: git fetch && ! git diff --quiet HEAD @{u} -- .
 ```
 
 The detect command has to fetch on its own, so a detector can also fetch tags
