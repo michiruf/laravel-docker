@@ -93,8 +93,12 @@ fi
 # Cone mode keeps the files at the top level of the repository, so shared root
 # level tooling stays available. This runs on every tick, and 'set' is
 # idempotent, so a changed GIT_SUBDIRECTORY reaches an existing checkout too.
+# A cleared GIT_SUBDIRECTORY has to take the same route back: without the
+# disable the checkout would keep the subdirectory of the previous run.
 if [ -n "$GIT_SUBDIRECTORY" ]; then
     git sparse-checkout set --cone "$GIT_SUBDIRECTORY"
+else
+    git sparse-checkout disable
 fi
 
 # A sparse checkout accepts directories that do not exist in the repository, so
