@@ -82,17 +82,27 @@ if [ ! -d ".git" ]; then
         p '> clone repository (remote default branch)' 'cyan'
         git clone "$GIT_URL" .
     fi
-
-    # Everything outside the deployed subdirectory is of no use to the
-    # application. Cone mode keeps the files at the top level of the
-    # repository, so shared root level tooling stays available.
-    if [ -n "$GIT_SUBDIRECTORY" ]; then
-        p "> restrict the checkout to '$GIT_SUBDIRECTORY'" 'cyan'
-        git sparse-checkout set --cone "$GIT_SUBDIRECTORY"
-    fi
     echo 'Done'
 
+    # Before anything else can fail: a clone without the state file would look
+    # like a finished deployment on the next run and never be provisioned.
     set_state initial
+fi
+
+# Everything outside the deployed subdirectory is of no use to the application.
+# Cone mode keeps the files at the top level of the repository, so shared root
+# level tooling stays available. This runs on every tick, and 'set' is
+# idempotent, so a changed GIT_SUBDIRECTORY reaches an existing checkout too.
+if [ -n "$GIT_SUBDIRECTORY" ]; then
+    git sparse-checkout set --cone "$GIT_SUBDIRECTORY"
+fi
+
+# A sparse checkout accepts directories that do not exist in the repository, so
+# a mistyped GIT_SUBDIRECTORY would only show up as a bare 'cd' error once per
+# minute. The next run retries, the directory may appear with a later commit.
+if [ ! -d "$APPLICATION_PATH" ]; then
+    p "the subdirectory '$GIT_SUBDIRECTORY' does not exist in the repository" 'red'
+    exit 1
 fi
 
 # The detect and deploy commands belong to the application, not to the
