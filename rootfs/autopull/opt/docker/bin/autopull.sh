@@ -89,6 +89,11 @@ if [ ! -d ".git" ]; then
     set_state initial
 fi
 
+# Reload the state after a possible clone. An absent (or unreadable, or
+# truncated) file means 'nothing pending' and falls through to the detection
+# below, which is the safe direction: at worst one deploy is detected late.
+state=$(cat "$state_file" 2>/dev/null || true)
+
 # Everything outside the deployed subdirectory is of no use to the application.
 # Cone mode keeps the files at the top level of the repository, so shared root
 # level tooling stays available. This runs on every tick, and 'set' is
@@ -103,21 +108,32 @@ fi
 
 # A sparse checkout accepts directories that do not exist in the repository, so
 # a mistyped GIT_SUBDIRECTORY would only show up as a bare 'cd' error once per
-# minute. The next run retries, the directory may appear with a later commit.
+# minute. A directory missing from the working tree is not a typo per se though:
+# a subdirectory added upstream after this checkout was made only appears once
+# HEAD moves, and moving HEAD is part of the deploy - which is unreachable while
+# this check aborts the run, so the deployment would never recover.
+# The upstream ref of the last fetch decides between the two, which costs no
+# additional fetch: carries it the directory, the pending update is applied
+# right here (a reset) and the deploy is marked as due, because the detect
+# command would see an up to date checkout afterwards.
 if [ ! -d "$APPLICATION_PATH" ]; then
-    p "the subdirectory '$GIT_SUBDIRECTORY' does not exist in the repository" 'red'
-    exit 1
+    if git cat-file -e "@{u}:$GIT_SUBDIRECTORY" 2>/dev/null; then
+        p "> the subdirectory '$GIT_SUBDIRECTORY' arrives with a newer revision" 'cyan'
+        /opt/docker/bin/run-command.sh git:update
+
+        [ "$state" = initial ] || set_state deploy
+    fi
+
+    if [ ! -d "$APPLICATION_PATH" ]; then
+        p "the subdirectory '$GIT_SUBDIRECTORY' does not exist in the repository" 'red'
+        exit 1
+    fi
 fi
 
 # The detect and deploy commands belong to the application, not to the
 # checkout: composer and artisan need the application directory, and git
 # resolves the repository from it just as well.
 cd "$APPLICATION_PATH"
-
-# Reload the state after a possible clone. An absent (or unreadable, or
-# truncated) file means 'nothing pending' and falls through to the detection
-# below, which is the safe direction: at worst one deploy is detected late.
-state=$(cat "$state_file" 2>/dev/null || true)
 
 # Decide what this tick has to do:
 # - 'initial': the initial commands are not a subset of DEPLOY_COMMANDS - they
