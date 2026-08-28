@@ -114,14 +114,18 @@ fi
 # this check aborts the run, so the deployment would never recover.
 # The upstream ref of the last fetch decides between the two, which costs no
 # additional fetch: carries it the directory, the pending update is applied
-# right here (a reset) and the deploy is marked as due, because the detect
-# command would see an up to date checkout afterwards.
+# right here (a reset).
+# What follows is an initial provisioning, not a deploy: a directory that does
+# not exist was never provisioned, so it has neither a vendor directory nor an
+# .env - and the deploy commands run artisan before composer installs one.
+# Marking it is required either way, because the detect command would see an up
+# to date checkout after the reset.
 if [ ! -d "$APPLICATION_PATH" ]; then
     if git cat-file -e "@{u}:$GIT_SUBDIRECTORY" 2>/dev/null; then
         p "> the subdirectory '$GIT_SUBDIRECTORY' arrives with a newer revision" 'cyan'
         /opt/docker/bin/run-command.sh git:update
 
-        [ "$state" = initial ] || set_state deploy
+        set_state initial
     fi
 
     if [ ! -d "$APPLICATION_PATH" ]; then

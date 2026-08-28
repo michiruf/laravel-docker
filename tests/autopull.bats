@@ -37,17 +37,22 @@ export MYSQL_PASSWORD=test
 setup_file() {
     # Monorepo fixture for the GIT_SUBDIRECTORY tests: the Laravel skeleton in
     # 'apps/api', a sibling application that must stay out of the checkout and
-    # a file at the repository root that cone mode keeps available
+    # a file at the repository root that cone mode keeps available.
+    # 'apps/api' arrives in a second commit, so the checkout can be rewound to
+    # before the subdirectory existed.
     local work="$BATS_FILE_TMPDIR/monorepo"
     rm -rf "$work" "$MONOREPO_PATH"
     mkdir -p "$work/apps/web"
-    git clone --depth 1 https://github.com/laravel/laravel.git "$work/apps/api"
-    rm -rf "$work/apps/api/.git"
     echo 'monorepo' > "$work/README.md"
     echo 'unrelated application' > "$work/apps/web/index.html"
     git -C "$work" init -q -b main
     git -C "$work" add -A
     git -C "$work" -c user.email=test@example.com -c user.name=test commit -q -m 'monorepo fixture'
+
+    git clone --depth 1 https://github.com/laravel/laravel.git "$work/apps/api"
+    rm -rf "$work/apps/api/.git"
+    git -C "$work" add -A
+    git -C "$work" -c user.email=test@example.com -c user.name=test commit -q -m 'add the api application'
     git clone -q --bare "$work" "$MONOREPO_PATH"
 
     compose down -v --remove-orphans || true
@@ -218,5 +223,39 @@ teardown_file() {
 
     wait_for_log '=> deploy completed' 240 "$((completed_before + 1))"
     compose exec -T app grep -q 'deployed change' /app/apps/api/public/probe.txt
+    assert_http_ok "http://localhost:$HOST_PORT"
+}
+
+@test "subdirectory: a subdirectory missing from the checkout is restored" {
+    # The subdirectory only exists from the second fixture commit on, so a
+    # checkout rewound to the root commit has no application directory while
+    # the already fetched upstream ref has one. Refusing to continue there is
+    # fatal rather than a retry: moving HEAD is part of the deploy, which the
+    # refusal keeps the run from ever reaching.
+    local completed_before restored_before initial_before
+    completed_before=$(log_count '=> deploy completed')
+    restored_before=$(log_count 'arrives with a newer revision')
+    initial_before=$(log_count '=> performing initial provisioning now')
+
+    # 'git reset' only drops the tracked files, so the deployed artifacts
+    # (vendor, .env) have to go with them - they are what a first deploy into
+    # the subdirectory would not have either
+    compose exec -T app sh -c '
+        cd /app
+        git reset --hard "$(git rev-list --max-parents=0 HEAD)"
+        rm -rf /app/apps/api'
+    run compose exec -T app test -e /app/apps/api
+    [ "$status" -ne 0 ]
+
+    wait_for_log 'arrives with a newer revision' 240 "$((restored_before + 1))"
+
+    # a subdirectory appearing for the first time has no vendor directory and
+    # no .env, so it needs the initial commands, not a plain deploy
+    wait_for_log '=> performing initial provisioning now' 240 "$((initial_before + 1))"
+    wait_for_log '=> deploy completed' 600 "$((completed_before + 1))"
+
+    compose exec -T app test -f /app/apps/api/artisan
+    run compose exec -T app cat /app/apps/api/.env
+    [[ "$output" == *"APP_KEY=base64:"* ]]
     assert_http_ok "http://localhost:$HOST_PORT"
 }
