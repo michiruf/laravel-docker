@@ -134,6 +134,26 @@ if [ ! -d "$APPLICATION_PATH" ]; then
     fi
 fi
 
+# A changed GIT_SUBDIRECTORY moves the deploy to a different application, which
+# no detect command can notice: both directories exist at the same revision, so
+# the checkout is up to date while the application now deployed from it was
+# never provisioned. The subdirectory the state belongs to is therefore recorded
+# next to it and compared on every run.
+# A missing record is not a change: a deployment provisioned by an earlier image
+# has none, and treating that as a switch would run the initial commands - and
+# with them key:generate - against a working application.
+subdirectory_file="$repository_path/.git/autopull-subdirectory"
+if [ -f "$subdirectory_file" ] && [ "$(cat "$subdirectory_file")" != "$GIT_SUBDIRECTORY" ]; then
+    p "> the deployed subdirectory changed to '$GIT_SUBDIRECTORY'" 'cyan'
+
+    set_state initial
+fi
+
+# Recorded the same way the state is: a write interrupted halfway would read as
+# an empty subdirectory and provision the next run from scratch.
+printf '%s\n' "$GIT_SUBDIRECTORY" > "$subdirectory_file.tmp"
+mv "$subdirectory_file.tmp" "$subdirectory_file"
+
 # The detect and deploy commands belong to the application, not to the
 # checkout: composer and artisan need the application directory, and git
 # resolves the repository from it just as well.

@@ -16,16 +16,18 @@ COMPOSE_FILE="$REPO_ROOT/examples/autopull/compose.yml"
 export MONOREPO_PATH="$BATS_FILE_TMPDIR/monorepo.git"
 export MONOREPO_PATH_IN_CONTAINER=/srv/monorepo.git
 
-# The active scenario (repository root first, subdirectory after the switch) is
-# persisted so every bats test process exports the matching env for compose
-if [ -f "$BATS_FILE_TMPDIR/scenario" ] && [ "$(cat "$BATS_FILE_TMPDIR/scenario")" = subdirectory ]; then
-    export GIT_URL="$MONOREPO_PATH_IN_CONTAINER"
-    export GIT_SUBDIRECTORY=apps/api
-    export BRANCH=main
-else
+# The active scenario (repository root, then the subdirectory, then the switch
+# to a sibling one) is persisted so every bats test process exports the matching
+# env for compose
+SCENARIO=$([ -f "$BATS_FILE_TMPDIR/scenario" ] && cat "$BATS_FILE_TMPDIR/scenario" || echo root)
+if [ "$SCENARIO" = root ]; then
     export GIT_URL=https://github.com/laravel/laravel.git
     export GIT_SUBDIRECTORY=
     export BRANCH=
+else
+    export GIT_URL="$MONOREPO_PATH_IN_CONTAINER"
+    export GIT_SUBDIRECTORY=$([ "$SCENARIO" = switched ] && echo apps/web || echo apps/api)
+    export BRANCH=main
 fi
 
 export HOST_PORT=8080
@@ -36,21 +38,25 @@ export MYSQL_PASSWORD=test
 
 setup_file() {
     # Monorepo fixture for the GIT_SUBDIRECTORY tests: the Laravel skeleton in
-    # 'apps/api', a sibling application that must stay out of the checkout and
-    # a file at the repository root that cone mode keeps available.
+    # 'apps/api', a sibling application that must stay out of the checkout (and
+    # that the deploy can be switched to) and a file at the repository root that
+    # cone mode keeps available.
     # 'apps/api' arrives in a second commit, so the checkout can be rewound to
     # before the subdirectory existed.
     local work="$BATS_FILE_TMPDIR/monorepo"
-    rm -rf "$work" "$MONOREPO_PATH"
-    mkdir -p "$work/apps/web"
+    local skeleton="$BATS_FILE_TMPDIR/skeleton"
+    rm -rf "$work" "$MONOREPO_PATH" "$skeleton"
+    git clone --depth 1 https://github.com/laravel/laravel.git "$skeleton"
+    rm -rf "$skeleton/.git"
+
+    mkdir -p "$work/apps"
     echo 'monorepo' > "$work/README.md"
-    echo 'unrelated application' > "$work/apps/web/index.html"
+    cp -r "$skeleton" "$work/apps/web"
     git -C "$work" init -q -b main
     git -C "$work" add -A
     git -C "$work" -c user.email=test@example.com -c user.name=test commit -q -m 'monorepo fixture'
 
-    git clone --depth 1 https://github.com/laravel/laravel.git "$work/apps/api"
-    rm -rf "$work/apps/api/.git"
+    cp -r "$skeleton" "$work/apps/api"
     git -C "$work" add -A
     git -C "$work" -c user.email=test@example.com -c user.name=test commit -q -m 'add the api application'
     git clone -q --bare "$work" "$MONOREPO_PATH"
@@ -258,4 +264,51 @@ teardown_file() {
     run compose exec -T app cat /app/apps/api/.env
     [[ "$output" == *"APP_KEY=base64:"* ]]
     assert_http_ok "http://localhost:$HOST_PORT"
+}
+
+@test "subdirectory: changing GIT_SUBDIRECTORY provisions the new application" {
+    # Both subdirectories exist at the same revision, so the checkout the switch
+    # lands on is up to date and no detect command can report the change - while
+    # the application now deployed from it was never provisioned.
+    # The volume is kept on purpose: the checkout, and with it the record of the
+    # previously deployed subdirectory, has to survive the recreate.
+    compose rm -sf app
+    echo switched > "$BATS_FILE_TMPDIR/scenario"
+    export GIT_URL="$MONOREPO_PATH_IN_CONTAINER"
+    export GIT_SUBDIRECTORY=apps/web
+    export BRANCH=main
+    compose up -d app
+
+    wait_for_log "the deployed subdirectory changed to 'apps/web'" 240
+    wait_for_log '=> performing initial provisioning now' 240
+    wait_for_log '=> deploy completed' 600
+
+    # the new application is provisioned and served
+    compose exec -T app test -f /app/apps/web/artisan
+    run compose exec -T app cat /app/apps/web/.env
+    [[ "$output" == *"APP_KEY=base64:"* ]]
+
+    # the previous application left the checkout - only its tracked files, the
+    # deploy artifacts (vendor, .env) are untracked and stay behind
+    run compose exec -T app test -e /app/apps/api/artisan
+    [ "$status" -ne 0 ]
+    assert_http_ok "http://localhost:$HOST_PORT"
+}
+
+@test "subdirectory: an unchanged GIT_SUBDIRECTORY does not provision again" {
+    local key_before
+    key_before=$(app_key)
+
+    # the record the comparison runs against
+    run compose exec -T app cat /app/.git/autopull-subdirectory
+    [ "$status" -eq 0 ]
+    [[ "$output" == "apps/web" ]]
+
+    # a further run must be a no-op: no switch, no initial provisioning and
+    # above all the same APP_KEY, which an initial run would regenerate
+    run compose exec -T app /opt/docker/bin/autopull.sh
+    [ "$status" -eq 0 ]
+    [[ "$output" != *'subdirectory changed'* ]]
+    [[ "$output" != *'initial provisioning'* ]]
+    [ "$(app_key)" = "$key_before" ]
 }
