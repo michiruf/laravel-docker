@@ -277,7 +277,15 @@ teardown_file() {
     export GIT_URL="$MONOREPO_PATH_IN_CONTAINER"
     export GIT_SUBDIRECTORY=apps/web
     export BRANCH=main
-    compose up -d app
+
+    # The fixture lives in the container filesystem, not on a volume, so the
+    # recreate drops it - and 'origin' would point at a path that no longer
+    # exists, which fails every fetch from here on. It is copied in again the
+    # same way the scenario before did it.
+    compose create app
+    compose cp "$MONOREPO_PATH" "app:$MONOREPO_PATH_IN_CONTAINER"
+    compose start app
+    compose exec -T app chown -R root:root "$MONOREPO_PATH_IN_CONTAINER"
 
     wait_for_log "the deployed subdirectory changed to 'apps/web'" 240
     wait_for_log '=> performing initial provisioning now' 240
