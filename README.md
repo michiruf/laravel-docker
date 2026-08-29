@@ -83,6 +83,34 @@ A failed deploy is retried every minute until it works. The open step is stored
 in `.git/autopull-state` on the application volume. So a deploy that was stopped
 by a crash or a new container is picked up again.
 
+#### Monorepos (`GIT_SUBDIRECTORY`)
+
+If the application does not live at the repository root, `GIT_SUBDIRECTORY`
+names the directory to deploy:
+
+```sh
+GIT_URL=https://github.com/you/monorepo.git
+GIT_SUBDIRECTORY=my-subdirectory/api
+```
+
+The repository is still cloned into the application volume, but the checkout is
+reduced to that directory plus the files of every directory leading to it - for
+`my-subdirectory/api` those are the files at the repository root and the files
+directly in `my-subdirectory/` (a
+[sparse checkout](https://git-scm.com/docs/git-sparse-checkout) in cone mode),
+so shared configuration above the application stays available. The application
+path and the document root move into the subdirectory:
+
+| Path                                            | Content                       |
+|-------------------------------------------------|-------------------------------|
+| `/app` (`GIT_REPOSITORY_PATH`)                  | The checkout with the `.git`  |
+| `/app/my-subdirectory/api` (`APPLICATION_PATH`) | The deployed application      |
+| `/app/my-subdirectory/api/public`               | Document root served by nginx |
+
+The deploy commands run in the application directory, so a custom
+`DETECT_COMMAND` using a pathspec has to be written relative to it.
+In combination with a custom detect command, also adjust the paths.
+
 #### Update detection (`DETECT_COMMAND`)
 
 Once a minute, autopull runs `DETECT_COMMAND` (any command token, default
@@ -90,7 +118,7 @@ Once a minute, autopull runs `DETECT_COMMAND` (any command token, default
 as an update, for example only changes in one folder of a monorepo:
 
 ```yaml
-DETECT_COMMAND: git fetch && ! git diff --quiet HEAD @{u} -- apps/api
+DETECT_COMMAND: git fetch && ! git diff --quiet HEAD @{u} -- .
 ```
 
 The detect command has to fetch on its own, so a detector can also fetch tags
@@ -143,16 +171,17 @@ The autopull variant automatically executes `permissions:fix` after every deploy
 `DEPLOY_COMMANDS` and `INITIAL_DEPLOY_COMMANDS` are lists of command tokens.
 `DEPLOY_COMMAND_SEPARATOR` (default `;`) splits them:
 
-| Token             | Action                                                                                        |
-|-------------------|-----------------------------------------------------------------------------------------------|
-| `-<anything>`     | Skipped / commented out                                                                       |
-| `git:detect`      | `git fetch`, then exit 0 if the remote is ahead of HEAD. Default `DETECT_COMMAND` (autopull). |
-| `git:update`      | `git reset --hard origin/<current branch>`                                                    |
-| `composer:<args>` | Runs composer, for example `composer:install --no-progress`                                   |
-| `artisan:<args>`  | Runs artisan. Fails if the application is not provisioned yet.                                |
-| `artisan?:<args>` | Same, but a missing or failing command only logs, for example `artisan?:horizon:terminate`    |
-| `permissions:fix` | `chown -R $APPLICATION_UID:$APPLICATION_GID .`                                                |
-| anything else     | Runs as a shell command                                                                       |
+| Token                  | Action                                                                                        |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| `-<anything>`          | Skipped / commented out                                                                       |
+| `git:detect`           | `git fetch`, then exit 0 if the remote is ahead of HEAD. Default `DETECT_COMMAND` (autopull). |
+| `git:update`           | `git reset --hard origin/<current branch>`                                                    |
+| `composer:<args>`      | Runs composer, for example `composer:install --no-progress`                                   |
+| `artisan:<args>`       | Runs artisan. Fails if the application is not provisioned yet.                                |
+| `artisan:key:generate` | Runs only if the application has no `APP_KEY` yet, an existing one is never replaced          |
+| `artisan?:<args>`      | Same, but a missing or failing command only logs, for example `artisan?:horizon:terminate`    |
+| `permissions:fix`      | `chown -R $APPLICATION_UID:$APPLICATION_GID .`                                                |
+| anything else          | Runs as a shell command                                                                       |
 
 A failing command stops the deploy. Autopull tries again a minute later, baked
 stops the container start. If a command may fail, write it as `artisan?:` or provide
@@ -197,6 +226,7 @@ are configurable, for example `APPLICATION_PATH`, `APPLICATION_UID`,
 |------------------------------------|----------------------------------|-------------------------------------------------------|
 | `GIT_URL`                          | — (required, autopull)           | Repository to deploy (https or ssh)                   |
 | `BRANCH`                           | empty (autopull)                 | Branch to deploy, empty uses the default branch       |
+| `GIT_SUBDIRECTORY`                 | empty (autopull)                 | Subdirectory holding the application (monorepos)      |
 | `GIT_SSH_KEY`                      | empty (autopull)                 | Private deploy key for ssh URLs, raw PEM or base64    |
 | `GIT_SSH_KNOWN_HOSTS`              | empty (autopull)                 | Pinned host key line(s), empty trusts on first use    |
 | `DETECT_COMMAND`                   | `git:detect`                     | Command that decides about a deploy (exit 0 = deploy) |

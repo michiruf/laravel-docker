@@ -35,7 +35,10 @@ run_commands() (
 # volume) rather than to the container: a deployment provisioned by an earlier
 # image has no state file and is correctly treated as up to date, and a
 # recreated container does not lose a pending deploy.
-state_file=.git/autopull-state
+# With GIT_SUBDIRECTORY the application path points into the checkout, so the
+# clone (and with it the state file) belongs to GIT_REPOSITORY_PATH.
+repository_path=${GIT_REPOSITORY_PATH:-$APPLICATION_PATH}
+state_file="$repository_path/.git/autopull-state"
 
 # Keep the variable and the file in sync - the file is what survives a crash,
 # the variable is what the rest of this run branches on.
@@ -58,19 +61,19 @@ fi
 # is unset); sourced so the exported GIT_SSH_COMMAND applies to clone/fetch
 . /opt/docker/bin/git-credentials.sh
 
-cd "$APPLICATION_PATH"
+cd "$repository_path"
 
 # Flag the directory to be usable by both, root and the application user.
 # This must happen on every run (not only on the initial clone): the config
 # lives in the container filesystem while the repository lives on a volume,
 # so a recreated container would otherwise fail all git commands with
 # 'detected dubious ownership'.
-git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$APPLICATION_PATH" \
-    || git config --global --add safe.directory "$APPLICATION_PATH"
+git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$repository_path" \
+    || git config --global --add safe.directory "$repository_path"
 
 # Clone if there is no .git directory yet
 if [ ! -d ".git" ]; then
-    p "=> initial project setup, because '$APPLICATION_PATH/.git' does not exist" 'purple'
+    p "=> initial project setup, because '$repository_path/.git' does not exist" 'purple'
 
     if [ -n "$BRANCH" ]; then
         p "> clone repository with branch '$BRANCH'" 'cyan'
@@ -81,6 +84,8 @@ if [ ! -d ".git" ]; then
     fi
     echo 'Done'
 
+    # Before anything else can fail: a clone without the state file would look
+    # like a finished deployment on the next run and never be provisioned.
     set_state initial
 fi
 
@@ -88,6 +93,85 @@ fi
 # truncated) file means 'nothing pending' and falls through to the detection
 # below, which is the safe direction: at worst one deploy is detected late.
 state=$(cat "$state_file" 2>/dev/null || true)
+
+# Everything outside the deployed subdirectory is of no use to the application.
+# Cone mode keeps the files at the top level of the repository, so shared root
+# level tooling stays available. This runs on every tick, and 'set' is
+# idempotent, so a changed GIT_SUBDIRECTORY reaches an existing checkout too.
+# A cleared GIT_SUBDIRECTORY has to take the same route back: without the
+# disable the checkout would keep the subdirectory of the previous run.
+if [ -n "$GIT_SUBDIRECTORY" ]; then
+    git sparse-checkout set --cone "$GIT_SUBDIRECTORY"
+else
+    git sparse-checkout disable
+fi
+
+# A sparse checkout accepts directories that do not exist in the repository, so
+# a mistyped GIT_SUBDIRECTORY would only show up as a bare 'cd' error once per
+# minute. A directory missing from the working tree is not a typo per se though:
+# a subdirectory added upstream after this checkout was made only appears once
+# HEAD moves, and moving HEAD is part of the deploy - which is unreachable while
+# this check aborts the run, so the deployment would never recover.
+# The upstream ref of the last fetch decides between the two, which costs no
+# additional fetch: carries it the directory, the pending update is applied
+# right here (a reset). The object type is what is asked for: a mere existence
+# check also accepts a blob, so a GIT_SUBDIRECTORY pointing at a file would
+# reset and mark an initial run every minute before failing below anyway.
+# What follows is an initial provisioning, not a deploy: a directory that does
+# not exist was never provisioned, so it has neither a vendor directory nor an
+# .env - and the deploy commands run artisan before composer installs one.
+# Marking it is required either way, because the detect command would see an up
+# to date checkout after the reset.
+if [ ! -d "$APPLICATION_PATH" ]; then
+    if [ "$(git cat-file -t "@{u}:$GIT_SUBDIRECTORY" 2>/dev/null)" = tree ]; then
+        p "> the subdirectory '$GIT_SUBDIRECTORY' arrives with a newer revision" 'cyan'
+        /opt/docker/bin/run-command.sh git:update
+
+        set_state initial
+    fi
+
+    if [ ! -d "$APPLICATION_PATH" ]; then
+        p "the subdirectory '$GIT_SUBDIRECTORY' does not exist in the repository" 'red'
+        exit 1
+    fi
+fi
+
+# A changed GIT_SUBDIRECTORY moves the deploy to a different application, which
+# no detect command can notice: both directories exist at the same revision, so
+# the checkout is up to date while the application now deployed from it was
+# never provisioned. The subdirectory the state belongs to is therefore recorded
+# next to it and compared on every run.
+# A missing record is not a change: a deployment provisioned by an earlier image
+# has none, and treating that as a switch would run the initial commands - and
+# with them key:generate - against a working application.
+subdirectory_file="$repository_path/.git/autopull-subdirectory"
+if [ -f "$subdirectory_file" ] && [ "$(cat "$subdirectory_file")" != "$GIT_SUBDIRECTORY" ]; then
+    p "> the deployed subdirectory changed to '$GIT_SUBDIRECTORY'" 'cyan'
+
+    # A switch back to a subdirectory deployed earlier finds it provisioned
+    # already: the sparse checkout only drops tracked files, so the .env and
+    # the vendor directory the previous deploy left there survived. Running the
+    # initial commands against those would regenerate the APP_KEY and make
+    # everything encrypted with the old one (sessions, encrypted columns)
+    # unreadable, so only a target without them is provisioned from scratch.
+    # The deploy is required either way, because the detect command sees an up
+    # to date checkout.
+    if [ -f "${APPLICATION_ENV_FILE:-$APPLICATION_PATH/.env}" ] && [ -d "$APPLICATION_PATH/vendor" ]; then
+        set_state deploy
+    else
+        set_state initial
+    fi
+fi
+
+# Recorded the same way the state is: a write interrupted halfway would read as
+# an empty subdirectory and provision the next run from scratch.
+printf '%s\n' "$GIT_SUBDIRECTORY" > "$subdirectory_file.tmp"
+mv "$subdirectory_file.tmp" "$subdirectory_file"
+
+# The detect and deploy commands belong to the application, not to the
+# checkout: composer and artisan need the application directory, and git
+# resolves the repository from it just as well.
+cd "$APPLICATION_PATH"
 
 # Decide what this tick has to do:
 # - 'initial': the initial commands are not a subset of DEPLOY_COMMANDS - they
@@ -124,7 +208,7 @@ if [ "$state" = deploy ]; then
     rm -f "$state_file"
 
     p '> adjust rights' 'cyan'
-    chown -R "$APPLICATION_UID":"$APPLICATION_GID" .
+    chown -R "$APPLICATION_UID":"$APPLICATION_GID" "$repository_path"
 
     p '=> deploy completed' 'purple'
 fi
