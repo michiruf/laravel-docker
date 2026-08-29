@@ -94,10 +94,12 @@ GIT_SUBDIRECTORY=my-subdirectory/api
 ```
 
 The repository is still cloned into the application volume, but the checkout is
-reduced to that directory plus the files at the top level of the repository (a
+reduced to that directory plus the files of every directory leading to it - for
+`my-subdirectory/api` those are the files at the repository root and the files
+directly in `my-subdirectory/` (a
 [sparse checkout](https://git-scm.com/docs/git-sparse-checkout) in cone mode),
-so shared root level configuration stays available. The application path and
-the document root move into the subdirectory:
+so shared configuration above the application stays available. The application
+path and the document root move into the subdirectory:
 
 | Path                                            | Content                       |
 |-------------------------------------------------|-------------------------------|
