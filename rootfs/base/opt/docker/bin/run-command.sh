@@ -39,6 +39,16 @@ case $command in
         eval "/opt/docker/bin/laravel-artisan.sh $args" \
             || p "optional artisan command '$args' failed or is unavailable, continuing" 'yellow'
         ;;
+    artisan:key:generate*)
+        # An APP_KEY is generated once and then kept
+        env_file=${APPLICATION_ENV_FILE:-"$APPLICATION_PATH/.env"}
+        env_key=$(sed -n 's/^APP_KEY=//p' "$env_file" 2>/dev/null | tail -n1 | tr -d "\"' ")
+        if [ -n "${APP_KEY:-}" ] || [ -n "$env_key" ]; then
+            p 'the application has an APP_KEY already, skipping the key generation' 'yellow'
+        else
+            eval "/opt/docker/bin/laravel-artisan.sh ${command#artisan:}"
+        fi
+        ;;
     artisan:*)
         # artisan wrapper script already has ansi
         eval "/opt/docker/bin/laravel-artisan.sh ${command#artisan:}"

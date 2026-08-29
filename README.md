@@ -171,16 +171,17 @@ The autopull variant automatically executes `permissions:fix` after every deploy
 `DEPLOY_COMMANDS` and `INITIAL_DEPLOY_COMMANDS` are lists of command tokens.
 `DEPLOY_COMMAND_SEPARATOR` (default `;`) splits them:
 
-| Token             | Action                                                                                        |
-|-------------------|-----------------------------------------------------------------------------------------------|
-| `-<anything>`     | Skipped / commented out                                                                       |
-| `git:detect`      | `git fetch`, then exit 0 if the remote is ahead of HEAD. Default `DETECT_COMMAND` (autopull). |
-| `git:update`      | `git reset --hard origin/<current branch>`                                                    |
-| `composer:<args>` | Runs composer, for example `composer:install --no-progress`                                   |
-| `artisan:<args>`  | Runs artisan. Fails if the application is not provisioned yet.                                |
-| `artisan?:<args>` | Same, but a missing or failing command only logs, for example `artisan?:horizon:terminate`    |
-| `permissions:fix` | `chown -R $APPLICATION_UID:$APPLICATION_GID .`                                                |
-| anything else     | Runs as a shell command                                                                       |
+| Token                  | Action                                                                                        |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| `-<anything>`          | Skipped / commented out                                                                       |
+| `git:detect`           | `git fetch`, then exit 0 if the remote is ahead of HEAD. Default `DETECT_COMMAND` (autopull). |
+| `git:update`           | `git reset --hard origin/<current branch>`                                                    |
+| `composer:<args>`      | Runs composer, for example `composer:install --no-progress`                                   |
+| `artisan:<args>`       | Runs artisan. Fails if the application is not provisioned yet.                                |
+| `artisan:key:generate` | Runs only if the application has no `APP_KEY` yet, an existing one is never replaced          |
+| `artisan?:<args>`      | Same, but a missing or failing command only logs, for example `artisan?:horizon:terminate`    |
+| `permissions:fix`      | `chown -R $APPLICATION_UID:$APPLICATION_GID .`                                                |
+| anything else          | Runs as a shell command                                                                       |
 
 A failing command stops the deploy. Autopull tries again a minute later, baked
 stops the container start. If a command may fail, write it as `artisan?:` or provide
