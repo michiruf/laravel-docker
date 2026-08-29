@@ -148,7 +148,19 @@ subdirectory_file="$repository_path/.git/autopull-subdirectory"
 if [ -f "$subdirectory_file" ] && [ "$(cat "$subdirectory_file")" != "$GIT_SUBDIRECTORY" ]; then
     p "> the deployed subdirectory changed to '$GIT_SUBDIRECTORY'" 'cyan'
 
-    set_state initial
+    # A switch back to a subdirectory deployed earlier finds it provisioned
+    # already: the sparse checkout only drops tracked files, so the .env and
+    # the vendor directory the previous deploy left there survived. Running the
+    # initial commands against those would regenerate the APP_KEY and make
+    # everything encrypted with the old one (sessions, encrypted columns)
+    # unreadable, so only a target without them is provisioned from scratch.
+    # The deploy is required either way, because the detect command sees an up
+    # to date checkout.
+    if [ -f "${APPLICATION_ENV_FILE:-$APPLICATION_PATH/.env}" ] && [ -d "$APPLICATION_PATH/vendor" ]; then
+        set_state deploy
+    else
+        set_state initial
+    fi
 fi
 
 # Recorded the same way the state is: a write interrupted halfway would read as
