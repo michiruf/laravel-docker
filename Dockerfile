@@ -8,7 +8,7 @@
 #
 # Build: docker build --target <base|autopull|baked> .
 
-FROM webdevops/php-nginx:8.4-alpine AS base
+FROM webdevops/php-nginx:8.5-alpine AS base
 
 # Patch fastcgi to use the realpath_root instead of the document_root, so we do not need to reload fpm
 # See https://deployer.org/docs/7.x/avoid-php-fpm-reloading
