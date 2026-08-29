@@ -10,8 +10,12 @@ compose() {
 # Application directory inside the container, asked of the container itself: a
 # plain 'docker exec' only sees the image default, which a GIT_SUBDIRECTORY
 # deploy moves.
+# The sourced script prints on its own (it creates a missing .env, or warns
+# that there is nothing to copy over yet), so its output is dropped - it would
+# otherwise end up in front of the path and every caller would work on a
+# nonexistent directory.
 app_path() {
-    compose exec -T app sh -c '. /opt/docker/etc/laravel-env.sh; printf %s "$APPLICATION_PATH"'
+    compose exec -T app sh -c '. /opt/docker/etc/laravel-env.sh >/dev/null; printf %s "$APPLICATION_PATH"'
 }
 
 # Count how often the app service log contains a pattern so far.
