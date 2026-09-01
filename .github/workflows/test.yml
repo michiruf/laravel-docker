@@ -20,7 +20,7 @@ jobs:
           shellcheck rootfs/*/opt/docker/bin/*.sh rootfs/base/opt/docker/bin/service.d/*.sh rootfs/*/opt/docker/provision/entrypoint.d/*.sh rootfs/base/opt/docker/etc/print.sh
 
       - name: Hadolint
-        uses: hadolint/hadolint-action@v3.4.0
+        uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: Dockerfile
 
